@@ -21,6 +21,15 @@ into a template an agent can install around **any** project in one run.
    on the board. When it reports done, `proje/` is your project with the whole structure
    inside. Move it wherever you like.
 
+## Where to work afterwards
+
+This folder is a one-time workbench. When the bootstrap is done, move `proje/` to its
+permanent place (or, for an existing repo, copy the generated files into your real clone)
+and open your agent **at that project's root** — the directory that holds
+`agent-scaffold.config.json` and `.claude/`. Hooks resolve their paths from the directory
+the agent is opened in; opened in a subfolder such as `src/`, nothing fires and nothing
+warns. For a multi-repo layout the root is the umbrella directory that contains the repos.
+
 ## What you get inside `proje/`
 
 | Piece | Purpose |

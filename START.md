@@ -305,8 +305,11 @@ One message, in the chosen language, with:
    SessionStart note or `CLAUDE.md`; pick work from the task board and claim it in the
    coordination file; delegate reading to the scout, mechanical edits to the worker,
    gates to the verifier.
-5. If `proje/` should now be moved out (it is the finished project), say so and give the
-   one command.
+5. Where to work from now on: `proje/` is the finished project — give the one command to
+   move it to its permanent place (or, for an existing repo, to copy the generated files
+   into the real clone), and state plainly that every future session is opened **at that
+   project's root** (the directory with `agent-scaffold.config.json` and `.claude/`), never
+   in a subfolder, because hooks resolve from the directory the agent is opened in.
 
 ### Done when
 
