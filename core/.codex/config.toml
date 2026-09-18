@@ -1,0 +1,36 @@
+# CLAUDE.md is the canonical shared repository guide. Codex reads it
+# directly whenever a directory does not contain AGENTS.md/AGENTS.override.md.
+project_doc_fallback_filenames = ["CLAUDE.md"]
+
+# --- Worker profiles (delegation tiers) ---
+# Codex-side counterparts of the scout/worker/verifier subagents used on the
+# Claude Code side (see docs/agent-working-rules.md §1). `analyst` has no
+# Claude twin: it is the strong-model lane for deep flow analysis.
+# Usage: codex exec --profile scout --sandbox read-only "..."
+#
+# Fill in the model ids below for your account/subscription before use:
+#   <cheap-model>  = your fastest/cheapest available model (mechanical work)
+#   <strong-model> = your strongest reasoning model (architecture-grade analysis)
+#   <mid-model>    = your default/mid-tier model (well-specified mechanical edits)
+
+# exploration/reading/summarizing (mechanical: "where does this occur", file
+# lists, log scanning)
+[profiles.scout]
+model = "<cheap-model>"
+model_reasoning_effort = "low"
+
+# deep exploration/flow understanding ("how does this flow work", architecture
+# analysis) — use when the architect's decision depends on this summary
+[profiles.analyst]
+model = "<strong-model>"
+model_reasoning_effort = "medium"
+
+# well-specified mechanical work (edits, refactors with a clear spec)
+[profiles.worker]
+model = "<mid-model>"
+model_reasoning_effort = "medium"
+
+# running gates/tests and extracting a summary — cheap model, medium effort
+[profiles.verifier]
+model = "<cheap-model>"
+model_reasoning_effort = "medium"

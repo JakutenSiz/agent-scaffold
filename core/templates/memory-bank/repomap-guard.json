@@ -1,0 +1,7 @@
+{
+  "$comment": "Read by scripts/repomap-check.mjs, which runs in the push gate to confirm that source files added since repoMap.md was last touched are discoverable from repoMap.md. This file is optional — omit it to use the built-in defaults described below.",
+  "$comment_inventorySegments": "inventorySegments: directory name segments that count as an 'inventory' location. A new file whose path passes through one of these segments (or sits directly under a `lib/` directory) must be findable in repoMap.md BY NAME (its filename, extension stripped) — a mention of an ancestor directory is not enough. Default when this file is absent: [\"components\", \"hooks\", \"shared\", \"infra\", \"screens\"].",
+  "inventorySegments": ["components", "hooks", "shared", "infra", "screens", "widgets"],
+  "$comment_ignore": "ignore: extra regex strings (matched against the file's repo-relative path) for files that never need a repoMap.md mention. Appended to the built-in ignore list, which already covers tests/specs/stories, locale files, *.md, *.d.ts, migrations/, memory-bank/, node_modules/, public|assets|static/, and common non-source extensions (json/yaml/css/scss/svg/images/lockfiles).",
+  "ignore": ["(^|/)generated/", "(^|/)__mocks__/"]
+}

@@ -1,0 +1,11 @@
+
+# --- agent-scaffold (append to the project's .gitignore) ---
+# per-session hook state
+.claude/.read-guard/
+.claude/.submodule-freshness-cache.json
+.claude/.edit-check-*.lock
+# links created by .claude/hooks/ensure-agent-compat.mjs (Codex/Gemini share the Claude sources)
+.agents/skills
+.codex/hooks
+# personal overrides
+.claude/settings.local.json

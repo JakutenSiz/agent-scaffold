@@ -1,0 +1,114 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git fetch *)",
+      "Bash(node --check *)",
+      "Bash(node --test tests/*)",
+      "Bash(npm test)",
+      "Bash(npm run test:file *)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(npm run lint)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/ensure-agent-compat.mjs\"",
+            "timeout": 10,
+            "statusMessage": "shared agent files"
+          },
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-context.mjs\"",
+            "timeout": 45,
+            "statusMessage": "session note + repo freshness check"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/read-guard.mjs\" reset",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Read|Grep|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/read-guard.mjs\" post",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/edit-check.mjs\"",
+            "asyncRewake": true,
+            "timeout": 180,
+            "statusMessage": "post-edit type/syntax check"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/map-guardian.mjs\"",
+            "timeout": 10,
+            "statusMessage": "map guardian"
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Grep|Glob|Agent|Workflow|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/read-guard.mjs\" pre",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/push-guard.mjs\"",
+            "if": "Bash(git *)",
+            "timeout": 30,
+            "statusMessage": "push gate check"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/test-runner-guard.mjs\"",
+            "timeout": 15,
+            "statusMessage": "test-runner guard (worker/process cap)"
+          }
+        ]
+      }
+    ]
+  }
+}

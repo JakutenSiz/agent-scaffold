@@ -1,0 +1,11 @@
+node_modules/
+.claude/.read-guard/
+.claude/.submodule-freshness-cache.json
+.claude/.edit-check-*.lock
+.claude/settings.local.json
+.agents/
+core/.agents/
+core/.codex/hooks
+proje/*
+!proje/README.md
+!proje/.gitkeep

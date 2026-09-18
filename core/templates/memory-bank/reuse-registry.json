@@ -1,0 +1,17 @@
+{
+  "$comment": "Read by the map-guardian pre-edit hook (.claude/hooks/map-guardian.mjs) (fires on Edit/Write before the change is applied) and by the first-touch context injector for this repo. For each entry, if the new file content contains one of `triggers`, AND the target file's repo-relative path is not one of `canonical` (exact match, or matches as a path suffix) and does not contain one of `exempt` as a substring, AND none of the canonical files' basenames (extension stripped) already appear anywhere in the new-plus-existing file content, the edit is DENIED with a message pointing at the canonical file(s) — the intent is to stop a second implementation of something that already exists from being written silently.",
+  "entries": [
+    {
+      "$comment": "name: human-readable label for this capability, used in the deny message and in the first-touch summary shown to an agent.",
+      "name": "date picker",
+      "$comment_canonical": "canonical: repo-relative path(s) that ARE the allowed implementation(s) of this capability. Editing one of these files themselves is always allowed.",
+      "canonical": ["components/shared/DatePicker.tsx"],
+      "$comment_triggers": "triggers: substrings that, if found in newly written content, suggest the agent is about to reimplement this capability from scratch — a function/class/component name or a distinctive library call is more reliable than a generic word.",
+      "triggers": ["function DatePicker(", "class DatePicker", "new Date(", "react-datepicker"],
+      "$comment_exempt": "exempt: substrings matched against the repo-relative path; any file whose path contains one of these may write matching content anyway (tests, generated code, a legacy directory kept for reference).",
+      "exempt": ["tests/", "__tests__/", "e2e/"],
+      "$comment_use": "use: optional one-line guidance shown alongside the capability name — when to reach for the canonical piece instead of writing new code.",
+      "use": "Any UI surface that needs a calendar date input should import components/shared/DatePicker.tsx rather than wrapping a date library again."
+    }
+  ]
+}

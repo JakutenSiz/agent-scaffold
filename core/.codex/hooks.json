@@ -1,0 +1,25 @@
+{
+  "description": "Codex hooks backed by the canonical .claude hook scripts.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.claude/hooks/ensure-agent-compat.mjs\"",
+            "commandWindows": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"node (Join-Path (git rev-parse --show-toplevel) '.claude/hooks/ensure-agent-compat.mjs')\"",
+            "timeout": 10,
+            "statusMessage": "shared agent files"
+          },
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.claude/hooks/session-context.mjs\"",
+            "commandWindows": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"node (Join-Path (git rev-parse --show-toplevel) '.claude/hooks/session-context.mjs')\"",
+            "timeout": 10,
+            "statusMessage": "session note"
+          }
+        ]
+      }
+    ]
+  }
+}

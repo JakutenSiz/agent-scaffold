@@ -1,0 +1,53 @@
+{
+  "$comment": "Copy to agent-scaffold.config.json at the PROJECT root (next to CLAUDE.md). All hooks and scripts read this file. Paths are relative to the project root. Keys marked (auto) are filled by the bootstrap; edit freely afterwards.",
+  "version": 1,
+  "projectName": "my-project",
+  "language": "en",
+  "layout": "single",
+  "humanGatekeeper": "the project owner",
+  "labels": { "humanOnly": "DEV", "anyone": "ANY" },
+  "repos": [
+    {
+      "name": "app",
+      "path": ".",
+      "stack": "node",
+      "checks": {
+        "syntax": "node --check {file}",
+        "typecheck": "",
+        "lint": "",
+        "test": "npm test",
+        "build": ""
+      },
+      "editCheck": [
+        { "glob": "**/*.{js,mjs,cjs}", "command": "node --check {file}" },
+        { "glob": "**/*.{ts,tsx}", "command": "npx tsc --noEmit -p {repo}", "serialize": true },
+        { "glob": "**/*.py", "command": "python -m py_compile {file}" }
+      ],
+      "deployBranches": ["main"],
+      "sourceExtensions": ["ts", "tsx", "js", "jsx", "mjs", "cjs", "py"]
+    }
+  ],
+  "board": {
+    "file": "task-board.md",
+    "archive": "task-board-archive.md",
+    "ceiling": 4000,
+    "doneSignals": ["done", "closed", "live", "deployed", "merged", "shipped", "deploy ok"],
+    "partialSignals": ["remaining", "pending", "awaiting", "blocked", "todo"],
+    "$comment_signals": "Used by scripts/board-staleness.mjs. For a non-English language ADD that language's words here, or the sentinel never fires."
+  },
+  "coordination": { "file": "coordination.md", "archive": "coordination-archive.md", "ceiling": 1200 },
+  "memoryBank": {
+    "dir": "memory-bank",
+    "ceiling": 800,
+    "windowDays": 14,
+    "pendingPhrases": [
+      "pending", "awaiting", "waiting for", "not yet deployed", "flag off", "dark-launched", "blocked",
+      "bekliyor", "bekleniyor", "henüz", "bayrak kapalı", "karanlık"
+    ]
+  },
+  "docs": { "reports": "reports", "specs": "specs", "workingRules": "docs/agent-working-rules.md", "memoryBankGuide": "docs/memory-bank-guide.md" },
+  "delegation": { "warnAfterReads": 5, "denyAfterReads": 10, "subagents": { "scout": "scout", "worker": "worker", "verifier": "verifier" } },
+  "session": { "autoPull": true, "skills": ["gate-ritual", "orchestrator", "new-skill"] },
+  "testRunner": { "processName": "chrome-headless-shell", "maxWorkers": 2, "maxProcesses": 8, "triggerPattern": "playwright|e2e" },
+  "secretScan": { "tool": "gitleaks", "failClosed": true, "skipEnv": "SKIP_PUSH_GATE" }
+}

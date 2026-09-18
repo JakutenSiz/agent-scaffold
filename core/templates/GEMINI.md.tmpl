@@ -1,0 +1,23 @@
+# {{PROJECT_NAME}} — Gemini CLI notes
+
+The rules are canonical elsewhere; this file carries only the deltas Gemini needs because
+it runs **without the hooks** Claude Code and Codex get.
+
+Canonical: `CLAUDE.md` · `docs/agent-working-rules.md` · `docs/memory-bank-guide.md` ·
+`{{COORDINATION_FILE}}` `## Protocol` · `{{BOARD_FILE}}` §9.
+
+## Before you start (the SessionStart hook would do this for you)
+1. `git pull --ff-only` in the root{{MULTI_REPO_PULL_NOTE}}.
+2. Read `{{COORDINATION_FILE}}` (open claims and messages only) and claim your item.
+3. Read the `{{MEMORY_BANK_DIR}}/` of the repo you will work in (`repoMap.md`, `activeContext.md`).
+4. `node scripts/md-size-watch.mjs --line` — act on a warning by archiving, never by deleting.
+
+## Before you push (the push-guard hook would do this for you)
+1. `node scripts/repomap-check.mjs <repo>` — new source files must be findable in `repoMap.md`.
+2. The git pre-push hook (secret scan + syntax gate on deploy branches) is agent-independent and runs for you once `setup-hooks.sh` was executed.
+3. Deploy branches: <!-- fill: list per repo, or "none". --> — pushing there is a deploy; confirm with the human first.
+
+## Boundaries
+- Do not touch files another agent has claimed. Use a separate worktree for parallel writes.
+- You cannot see live Claude↔Claude messages; everything that concerns you is in the coordination file.
+- Prose language: {{PROSE_LANGUAGE}}.

@@ -1,0 +1,36 @@
+# Agent Coordination — {{PROJECT_NAME}}
+
+> **Last writer:** <session or agent name> — <date>
+> This file carries only OPEN work: active claims, unread messages, handed-over work.
+> Everything closed moves to `{{COORDINATION_ARCHIVE}}` in the same commit. The archive is
+> not read at session start. Size sentinel ceiling: {{COORDINATION_CEILING}} lines.
+
+## Protocol
+
+1. **Claim before you start.** Add a block `## 🟢 CLAIM — <session> (<date>) — <item code>` and one line in the "Active claims" index below. The item code comes from `{{BOARD_FILE}}`; if the work has no board item, add one there first (code scheme: board §9). Evidence of finished work goes to the **board item**, not here — this file is only for messages and claims between agents.
+2. **Refresh long claims.** A claim freezes the state at the moment it was written; days later it looks abandoned. Add `refreshed <date>` to the block and point to the board item for the current state. Do not copy details here.
+3. **Claims age; check the owner is alive.** A claim whose session no longer exists is ownerless: if your tool lists live sessions, check the list; otherwise look at the last commits of that work — the session id may simply have changed. Never declare a session dead without looking. Refresh your own claim if your session id changes.
+4. **A claim that waits on an external step stays.** Removing it invites duplicate work. Ownerless work moves to "Handed-over work".
+5. **Messages.** A note for another agent goes as a dated bullet under `## Open messages`. The reader deletes it or marks it `✔ read` once acted on. Update the "Last writer" line every time you write.
+6. **Closing.** When the item is done: change the claim heading to `## ✅ DONE`, write the evidence into the board item, move the block (full text) to the top of `{{COORDINATION_ARCHIVE}}` and add one line to `## Closed` below (date + item code only). Same commit. Lessons that are permanent go to the repo's `{{MEMORY_BANK_DIR}}/`, not to the archive.
+7. **Before starting: pull and check who is behind.** `git pull --ff-only` in the root (the SessionStart hook attempts this and reports it; without hooks, do it by hand). {{MULTI_REPO_PULL_NOTE}} If the tree is dirty or another agent holds a claim on it, coordinate first; never pull blind.
+8. **Live messages** (only between sessions of the same tool on the same machine, if the tool supports it): use them for time-critical questions — "anything in flight?" before a deploy or worker restart, same-file intent, claim clash. They leave NO record: write the outcome here immediately. Other tools and machines never see them.
+9. **Hand-over.** Leaving work half-done: move your claim to `## Handed-over work` with what is done (rough %), what remains, and what the next agent must watch for. Half-done work is never ownerless.
+10. **Archiving a table moves the whole section**, not table rows: continuation lines that do not start with `|` get lost otherwise.
+
+## Active claims (index — one line each, details in the claim block)
+
+| Session | Item code | Since | One-line state |
+|---|---|---|---|
+
+## Open messages
+
+<!-- dated bullets, newest first -->
+
+## Handed-over work
+
+<!-- claim blocks moved here with %, remaining, watch-outs -->
+
+## Closed
+
+<!-- one line each: <date> <item code> -->

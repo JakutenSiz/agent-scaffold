@@ -1,0 +1,27 @@
+#!/bin/sh
+# ============================================================
+# agent-scaffold pre-push gate.
+#
+# Installed via `core.hooksPath` (see setup-hooks.sh / setup-hooks.bat) so
+# it applies uniformly to the root repo and every configured sub-repo.
+#
+# All the actual logic -- resolving agent-scaffold.config.json, matching the
+# current repo, checking whether the push targets one of its configured
+# deploy branches, running the secret scan, and running the per-repo
+# syntax/typecheck gates -- lives in scripts/pre-push-check.mjs (sh has no
+# JSON parser; Node does the config reading). This file only has to locate
+# that script and hand it the ref-update lines git piped to us on stdin.
+#
+# Escape hatch: see config.secretScan.skipEnv in agent-scaffold.config.json
+# (defaults to: SKIP_PUSH_GATE=1 git push ...).
+# Disable entirely: git config --unset core.hooksPath
+# ============================================================
+
+hook_dir=$(cd "$(dirname "$0")" && pwd) || exit 0
+gate_script="$hook_dir/../scripts/pre-push-check.mjs"
+
+# Scaffold scripts aren't installed alongside this hook -- fail open.
+[ -f "$gate_script" ] || exit 0
+
+node "$gate_script"
+exit $?

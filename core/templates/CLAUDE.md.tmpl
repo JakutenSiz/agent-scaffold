@@ -1,0 +1,69 @@
+# {{PROJECT_NAME}} — Agent Guide
+
+This file is the first thing every AI agent (Claude Code, Codex, Gemini or other) reads
+in this project. It holds **project facts**. The working rules live in one canonical
+place each and are linked, not copied:
+
+- How agents work here (delegation, sessions, gates): `docs/agent-working-rules.md`
+- Memory-bank rules: `docs/memory-bank-guide.md`
+- Task board rules: `{{BOARD_FILE}}` §9 · Coordination protocol: `{{COORDINATION_FILE}}` `## Protocol`
+- Machine-readable parameters (repos, ceilings, deploy branches): `agent-scaffold.config.json`
+
+## Repository shape
+
+<!-- fill: one paragraph — single repo / umbrella of N repos / monorepo with workspaces; where work usually happens. -->
+
+| Path | Stack | Role |
+|---|---|---|
+<!-- fill: one row per repo/package from discovery. Role = what it owns and what it explicitly does NOT do. -->
+
+<!-- fill: the integration backbone in 2–3 sentences — shared DB? queue? HTTP between services? contracts dir? -->
+
+## Commands by repo
+
+All commands run from inside the repo's working dir, not from the umbrella root.
+
+<!-- fill: per repo, a fenced block: install, dev, build, lint, type-check, test (whole), single test. Add ⚠️ lines for measured traps (Node version, env needed, flags that must never be used on the whole tree). -->
+
+## Architecture: boundaries
+
+<!-- fill: who calls whom, who owns which side effects (provider APIs, auth tokens, DB writes, file storage), where a feature usually spans two repos. Keep to what an agent needs in order to know WHERE a change belongs. -->
+
+## Architecture: inside each repo
+
+<!-- fill: per repo, 3–6 lines: routing/entry convention, domain layout, where helpers live, the one file that registers things in a fixed order, the process model in production. Point to memory-bank/repoMap.md for the full map. -->
+
+## Data and migrations
+
+<!-- fill: DB engine, migration dir per repo, "additive only" rule if it applies, whether repositories tolerate older schema shapes, who may run migrations against prod (the gatekeeper tag). Remove the section if there is no data layer. -->
+
+## Memory banks (read before non-trivial work)
+
+Every repo has a `{{MEMORY_BANK_DIR}}/` with `projectbrief.md`, `productContext.md`,
+`systemPatterns.md`, `techContext.md`, `repoMap.md`, `capabilityRegistry.md`,
+`activeContext.md`, `progress.md`. `activeContext.md`/`progress.md` hold only the recent
+window; older entries live in `{{MEMORY_BANK_DIR}}/archive/`. Full rules:
+`docs/memory-bank-guide.md`.
+
+Keeping the map honest: adding a source file means adding it to that repo's
+`repoMap.md`; the push gate rejects a push whose new files cannot be found in the map
+(`node scripts/repomap-check.mjs <repo>` audits). Before writing a shared piece check
+`{{MEMORY_BANK_DIR}}/reuse-registry.json`; the pre-edit hook rejects re-implementing a
+registered canonical piece.
+
+## Working conventions
+
+- Prose, comments and commit messages: {{PROSE_LANGUAGE}}. Match the surrounding language of the file you edit.
+<!-- fill: 3–8 bullets — branch model, commit granularity, submodule pointer bumps if any, schema-change policy, "same feature touches repos A and B: decide which side owns it before editing", never-touch dirs from the human's answers. -->
+
+## Multi-agent working style
+
+Delegation-first: the main agent is the architect; `scout` explores, `worker` applies
+specs, `verifier` runs gates; cross-model review through a Codex lane. Single-level agent
+tree. Durable syntheses go to `{{REPORTS_DIR}}/`, worker recipes to `{{SPECS_DIR}}/`,
+repeated procedures become skills. The full rules and the why:
+`docs/agent-working-rules.md`.
+
+## Rituals (skills)
+
+<!-- fill: bullet per installed skill: `/gate-ritual` — when to call it; `/orchestrator`; `/new-skill`; plus any project skeletons you created (deploy, migration, …). -->
