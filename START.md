@@ -166,6 +166,7 @@ proje/
   .claude/skills/{gate-ritual,orchestrator,new-skill}/SKILL.md
   .codex/config.toml, .codex/hooks.json
   .githooks/pre-push                secret scan + syntax gate on deploy-branch pushes
+  .gitattributes                    LF for sh/mjs/git hooks (a CRLF checkout breaks the pre-push hook)
   setup-hooks.sh / setup-hooks.bat  one-time: core.hooksPath for every repo
 ```
 
