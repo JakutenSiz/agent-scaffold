@@ -2,6 +2,11 @@
 // Walks up from `startDir` (default: cwd) to find agent-scaffold.config.json.
 // Never throws on a missing file: returns { root, config: DEFAULTS, found: false }
 // so every hook/script stays fail-open when the scaffold is not installed.
+//
+// DEBUGGING TRAP (Windows + Git Bash): an MSYS path such as /c/Users/... or /tmp/...
+// passed as startDir is NOT resolved by Node; the walk-up finds nothing and every
+// hook goes silent (exit 0, no output) - indistinguishable from "nothing to say".
+// When testing hooks by hand from Git Bash, pass `pwd -W` (a C:\\ path).
 import fs from 'node:fs';
 import path from 'node:path';
 

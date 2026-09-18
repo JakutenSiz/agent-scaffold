@@ -31,16 +31,18 @@ Principles that override everything else in this file:
 1. **Discover before you ask.** Anything you can derive from the code (stack, commands,
    layout, language of comments) you derive. You ask only what you cannot derive.
 2. **Never overwrite the human's files.** If `proje/` already has a `CLAUDE.md`,
-   `AGENTS.md`, `README.md`, `.claude/`, `memory-bank/` or similar, you merge (their
-   content stays, yours is added under a clearly marked section) or you write yours next
-   to it with a `.scaffold` suffix and tell the human. Deleting is never part of this
-   procedure.
+   `AGENTS.md`, `README.md`, `.claude/`, `memory-bank/` or similar, their content stays.
+   The per-file rule is in step 5 (fixed layer: merge arrays, add only free names,
+   `.scaffold` twin for same-named docs/scripts) and step 6 (`CLAUDE.md`: append a marked
+   section). Deleting is never part of this procedure.
 3. **No placeholder survives.** When you finish, `grep -r "{{" proje/` and
    `grep -r "<!-- fill:" proje/` must return nothing. Facts you could not establish are
    written as an explicit line "Unknown as of <date>: …" and become task-board items.
 4. **Delegate the reading.** If your tool can spawn cheap subagents, the discovery phase
-   is their job; you keep the decisions. If it cannot, do it yourself but keep summaries,
-   not file dumps, in your context.
+   is their job; you keep the decisions. If it cannot (you are yourself a subagent, or the
+   tool has no delegation), do it yourself but keep summaries, not file dumps, in your
+   context. The bootstrap run may break the delegation rule it installs; the steady-state
+   sessions after it must not.
 5. **Report honestly.** The final report says what was verified by running a command,
    what was only written, and what still needs the human.
 
@@ -203,9 +205,10 @@ and add a board item.
 Language: if `language` is not `en`, write the **prose and the section headings** of
 every generated document in that language — this applies to all templates alike,
 including the memory-bank files and the two READMEs. Only these stay exactly as in the
-templates: headings that scripts parse (`## Protocol`, `## Active claims`,
-`## Staleness suppressions`, the dated `## YYYY-MM-DD` entry headings, the status
-emoji), file names, config keys and commands.
+templates: the headings scripts parse today (`## Staleness suppressions` on the board,
+the dated `## YYYY-MM-DD` entry headings in `activeContext.md`/`progress.md`), the
+headings reserved for tooling (`## Protocol`, `## Active claims` in the coordination
+file), the status emoji, file names, config keys and commands.
 
 ---
 
@@ -250,7 +253,11 @@ board items, not fixed silently.
 
 If the tool you run in is Claude Code, start a **new session** in `proje/` and confirm the
 SessionStart note appears (pull result, size line, checklist). If it does not, the hook
-wiring is wrong; fix it before reporting done.
+wiring is wrong; fix it before reporting done. A subagent cannot open a new session: run
+`node .claude/hooks/session-context.mjs` with a synthetic stdin payload
+(`{"session_id":"test","cwd":"<absolute path; on Windows a C:\\ path, not an MSYS /c/ path>"}`)
+to prove the script, and list "hook dispatch in a live session" under "only written" so
+the human verifies it by opening the project once.
 
 ---
 

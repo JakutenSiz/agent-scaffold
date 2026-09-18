@@ -10,13 +10,19 @@
 //
 // COVERAGE RULE (ported from the 2026-09-08 calibration, unchanged):
 //   - the file's basename (without extension) appears in the map -> covered;
-//   - the path passes through an INVENTORY directory (components/hooks/shared/
-//     infra/screens, or a file directly under lib/) -> NAME REQUIRED (it must
-//     be findable by its own shared-piece name — this is the lesson from a
-//     repo where the same shared component got rewritten three times because
+//   - the path passes through an INVENTORY directory (default list below covers
+//     frontend AND backend layouts: components/hooks/shared/infra/screens/common/
+//     utils/helpers/services/core, or a file directly under lib/) -> NAME REQUIRED
+//     (it must be findable by its own shared-piece name — this is the lesson from
+//     a repo where the same shared component got rewritten three times because
 //     nothing enforced this);
-//   - otherwise, if any parent directory (>=2 path segments) appears in the
-//     map -> covered.
+//   - otherwise, if ANY ancestor directory with >= 2 path segments appears in the
+//     map (with trailing slash, with or without the leading segment) -> covered.
+//     This is deliberately lenient: listing `src/app/` covers everything beneath
+//     it. Files directly under a one-segment top-level dir (scripts/x.py, bin/y)
+//     are covered by listing that dir (`scripts/`); deeper files under a
+//     one-segment dir still need a two-segment ancestor or their own name, so a
+//     bare `src/` never covers a whole tree.
 //
 // Customizable per repo with <repoDir>/<memoryBank.dir>/repomap-guard.json:
 //   { "inventorySegments": [...], "ignore": ["<regex>", ...] }
@@ -68,7 +74,8 @@ try {
 } catch {
   // no override -- use defaults
 }
-const INVENTORY = new Set(guard.inventorySegments || ['components', 'hooks', 'shared', 'infra', 'screens']);
+const DEFAULT_INVENTORY = ['components', 'hooks', 'shared', 'infra', 'screens', 'common', 'utils', 'helpers', 'services', 'core'];
+const INVENTORY = new Set(guard.inventorySegments || DEFAULT_INVENTORY);
 const IGNORE = (guard.ignore || []).map((r) => new RegExp(r)).concat([
   /(^|\/)(tests?|__tests__|e2e|fixtures?)\//, /\.(test|spec|stories)\./, /(^|\/)locales?\//,
   /\.md$/, /\.d\.ts$/, /(^|\/)migrations\//, new RegExp(`(^|/)${escapeRe(memoryBankDir)}/`), /(^|\/)node_modules\//,
@@ -119,6 +126,8 @@ function isCovered(f) {
     const d = dirSegs.slice(0, i).join('/') + '/';
     if (map.includes(d) || map.includes(d.replace(/^[^/]+\//, ''))) return true;
   }
+  // depth-1 file under a one-segment dir (scripts/x.py): the dir itself may cover it
+  if (dirSegs.length === 1 && map.includes(dirSegs[0] + '/')) return true;
   return false;
 }
 const missing = added.filter((f) => !isCovered(f));

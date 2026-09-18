@@ -19,7 +19,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { loadConfig } from '../../scripts/lib/config.mjs';
+import { loadConfig, repoFor } from '../../scripts/lib/config.mjs';
 
 let input = {};
 try {
@@ -72,8 +72,16 @@ try {
   registry = JSON.parse(readFileSync(path.join(repoRoot, MB_DIR, 'reuse-registry.json'), 'utf8'));
 } catch {}
 
-// (2) Reuse-registry gate — code files only.
-if (registry && /\.(tsx?|jsx?|mjs|cjs)$/.test(rel) && content) {
+// (2) Reuse-registry gate — source files only. "Source" is defined by the matching
+// repo's `sourceExtensions` in agent-scaffold.config.json (language-agnostic: py, go,
+// rs, ... work the same as ts/js); falls back to a broad default list.
+const repoEntry = repoFor(root, config, file);
+const SOURCE_EXT = (repoEntry && repoEntry.sourceExtensions && repoEntry.sourceExtensions.length)
+  ? repoEntry.sourceExtensions
+  : ['ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs', 'py', 'go', 'rs', 'java', 'kt', 'cs', 'php', 'rb', 'swift'];
+const escapeExt = (e) => e.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const isSource = new RegExp('\\.(' + SOURCE_EXT.map(escapeExt).join('|') + ')$').test(rel);
+if (registry && isSource && content) {
   let existing = '';
   try {
     existing = readFileSync(path.resolve(file), 'utf8');
