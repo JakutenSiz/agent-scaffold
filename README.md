@@ -14,9 +14,12 @@ into a template an agent can install around **any** project in one run.
 
    > Read `START.md` and do what it says.
 
-3. Answer the few questions it cannot derive from the code (language, deploy branches,
-   who the human gatekeeper is). When it reports done, `proje/` is your project with the
-   whole structure inside. Move it wherever you like.
+3. Answer its questions. Round 1, before it generates anything: the few facts it cannot
+   derive from the code (language, deploy branches, who the human gatekeeper is). Round 2,
+   after generation: the blanks only you know (model ids, a command it could not find, what
+   a deploy script does). Answers go straight into the files; what you skip becomes a task
+   on the board. When it reports done, `proje/` is your project with the whole structure
+   inside. Move it wherever you like.
 
 ## What you get inside `proje/`
 

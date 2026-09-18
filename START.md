@@ -86,10 +86,12 @@ everything you generate next.
 
 ---
 
-## 3. Questions (only what discovery could not answer)
+## 3. Questions, round 1 (only what discovery could not answer)
 
 Ask at most **six** questions, in one message, each with your proposed default so the
 human can answer "defaults are fine". Skip any question the inventory already answered.
+If your tool has a structured question widget (Claude Code's AskUserQuestion, for
+example), use it with the default as the first option; otherwise ask in plain text.
 
 1. **Language** for generated documents. Precedence: the prose language discovery found
    in the repo wins and the question is skipped; ask only when the repo is mixed or empty
@@ -108,6 +110,9 @@ human can answer "defaults are fine". Skip any question the inventory already an
 If you cannot ask (non-interactive run), take every default, write the defaults you took
 into the final report, and add one task-board item "Confirm scaffold defaults" tagged for
 the human.
+
+There is a **second round after generation** (step 8b) for the blanks only the human can
+fill. Do not ask those now; you do not yet know which ones exist.
 
 ---
 
@@ -249,15 +254,46 @@ wiring is wrong; fix it before reporting done.
 
 ---
 
+## 8b. Questions, round 2 (fill the blanks only the human knows)
+
+Generation and verification leave a short list of things no discovery can answer. Collect
+them while you work, then ask them **in one message**, each with a default or a "skip"
+option, and write the answers straight into the files. Only what the human skips or
+cannot answer becomes a task-board item tagged for the gatekeeper.
+
+Typical round-2 items (ask only those that actually came up):
+
+| Blank | Where the answer goes |
+|---|---|
+| Model ids for the Codex profiles (cheap / mid / strong) | `.codex/config.toml` |
+| Secret scanner not installed: install now, or turn `secretScan.failClosed` off? | `agent-scaffold.config.json`, or nothing if the human installs it |
+| A command discovery could not derive (lint, type-check, single test, build) | `agent-scaffold.config.json` `repos[].checks`, `techContext.md`, `gate-ritual` table |
+| A deploy script or host referenced but not in the repo (what does it do, who runs it?) | `CLAUDE.md` deploy section, `techContext.md`; never guess credentials |
+| Which tests need a live service (so the verifier skips them by name) | `gate-ritual` table |
+| Product facts the code does not reveal (who the users are, what "done" means for a release) | `productContext.md`, `projectbrief.md` |
+| Existing rituals to turn into skill skeletons (deploy, migration, release) | `.claude/skills/<name>/SKILL.md` |
+| Every "Unknown as of <date>" line you wrote in step 6 | the file that holds the line |
+
+Rules for this round:
+
+- One message, numbered, defaults visible. Never more than about ten items; if there are
+  more, ask the ten that block the most and leave the rest as board items.
+- Apply each answer immediately and re-run the affected step-8 check (config validation,
+  `node --check`, the placeholder greps).
+- In a non-interactive run this round is skipped entirely; every item becomes a board item
+  and the report lists them under "What needs the human now".
+
+---
+
 ## 9. Report to the human
 
 One message, in the chosen language, with:
 
 1. **What was generated** — the tree, ten lines max.
 2. **What was verified by running it** vs. **what was only written** (two short lists).
-3. **What needs the human now** — the board items tagged for the gatekeeper (model ids
-   in `.codex/config.toml`, secret-scanner install, deploy-branch confirmation, defaults
-   taken without asking).
+3. **What needs the human now** — only what round 2 could not close: the board items
+   tagged for the gatekeeper (skipped answers, defaults taken without asking in a
+   non-interactive run).
 4. **How to work from here** — three sentences: start every session by reading the
    SessionStart note or `CLAUDE.md`; pick work from the task board and claim it in the
    coordination file; delegate reading to the scout, mechanical edits to the worker,
@@ -273,6 +309,8 @@ One message, in the chosen language, with:
       complete memory bank per repo exist with no placeholder left.
 - [ ] `repoMap.md` has ≥ 10 real entry-point rows; `capabilityRegistry.md` lists real pieces.
 - [ ] All step-8 commands ran, or the report says exactly which could not and why.
+- [ ] Round-2 questions were asked (interactive run) and every answer landed in a file; the
+      board holds only what the human skipped.
 - [ ] The discovery report is in `<docs.reports>/` and the board holds every open unknown.
 
 Not done: a tree full of templates with generic prose, "TBD" left in a command column, a
