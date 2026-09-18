@@ -53,6 +53,15 @@ Requirements: Node ≥ 18 for hooks and scripts (documents work without it), git
 Optional: `gitleaks` for the secret scan (the pre-push gate fails closed without it by
 design; set `secretScan.failClosed=false` to change that).
 
+## Status
+
+v0.1 (September 2026). Bootstrapped and verified end to end on two projects: a small
+Node service (non-interactive run) and a Python/uv quant-research repo with an existing
+`CLAUDE.md` (interactive run, both question rounds, 130 tests green, all four Claude Code
+hooks confirmed in a live session). The friction logs of both runs are folded into
+`START.md` and the scripts. Not yet exercised: a multi-repo layout, Codex or Gemini as
+the bootstrapping agent, Linux.
+
 ## Layout of this package
 
 ```
