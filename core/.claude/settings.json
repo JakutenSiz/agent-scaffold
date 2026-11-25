@@ -7,7 +7,15 @@
       "Bash(npm test)",
       "Bash(npm run test:file *)",
       "Bash(npx tsc --noEmit)",
-      "Bash(npm run lint)"
+      "Bash(npm run lint)",
+      "Bash(node scripts/md-size-watch.mjs*)",
+      "Bash(node scripts/board-staleness.mjs*)",
+      "Bash(node scripts/human-queue.mjs*)",
+      "Bash(node scripts/git-hygiene-watch.mjs*)",
+      "Bash(node scripts/rule-inventory.mjs*)",
+      "Bash(node scripts/memory-bank-check.mjs*)",
+      "Bash(node scripts/repomap-check.mjs *)",
+      "Bash(node scripts/board-duplicate.mjs *)"
     ]
   },
   "hooks": {
@@ -17,13 +25,13 @@
           {
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/ensure-agent-compat.mjs\"",
-            "timeout": 10,
+            "timeout": 15,
             "statusMessage": "shared agent files"
           },
           {
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-context.mjs\"",
-            "timeout": 45,
+            "timeout": 60,
             "statusMessage": "session note + repo freshness check"
           }
         ]
@@ -36,13 +44,18 @@
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/read-guard.mjs\" reset",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/context-watch.mjs\"",
+            "timeout": 10
           }
         ]
       }
     ],
     "PostToolUse": [
       {
-        "matcher": "Read|Grep|Glob",
+        "matcher": "Read|Grep|Glob|Bash|PowerShell",
         "hooks": [
           {
             "type": "command",
@@ -66,6 +79,17 @@
     ],
     "PreToolUse": [
       {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/git-shield.mjs\"",
+            "timeout": 15,
+            "statusMessage": "git shield (shared checkout)"
+          }
+        ]
+      },
+      {
         "matcher": "Edit|Write",
         "hooks": [
           {
@@ -73,11 +97,16 @@
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/map-guardian.mjs\"",
             "timeout": 10,
             "statusMessage": "map guardian"
+          },
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/read-guard.mjs\" edit",
+            "timeout": 10
           }
         ]
       },
       {
-        "matcher": "Read|Grep|Glob|Agent|Workflow|Task",
+        "matcher": "Read|Grep|Glob|Agent|Workflow|Task|Bash|PowerShell",
         "hooks": [
           {
             "type": "command",

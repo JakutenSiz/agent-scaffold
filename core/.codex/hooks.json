@@ -15,8 +15,22 @@
             "type": "command",
             "command": "node \"$(git rev-parse --show-toplevel)/.claude/hooks/session-context.mjs\"",
             "commandWindows": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"node (Join-Path (git rev-parse --show-toplevel) '.claude/hooks/session-context.mjs')\"",
-            "timeout": 10,
+            "timeout": 60,
             "statusMessage": "session note"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.claude/hooks/codex-guard-adapter.mjs\" --guard",
+            "commandWindows": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"node (Join-Path (git rev-parse --show-toplevel) '.claude/hooks/codex-guard-adapter.mjs') --guard\"",
+            "timeout": 40,
+            "statusMessage": "safety hooks"
           }
         ]
       }

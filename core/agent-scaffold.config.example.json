@@ -1,10 +1,12 @@
 {
   "$comment": "Copy to agent-scaffold.config.json at the PROJECT root (next to CLAUDE.md). All hooks and scripts read this file. Paths are relative to the project root. Keys marked (auto) are filled by the bootstrap; edit freely afterwards.",
-  "version": 1,
+  "version": 2,
   "projectName": "my-project",
   "language": "en",
   "layout": "single",
   "humanGatekeeper": "the project owner",
+  "humans": ["OWNER"],
+  "$comment_humans": "One tag per human who instructs agents. Used as [OWNER] in a board item's 'Human step' field; scripts/human-queue.mjs builds one queue per tag. The decision-authority lists themselves are prose in CLAUDE.md.",
   "labels": { "humanOnly": "DEV", "anyone": "ANY" },
   "repos": [
     {
@@ -31,23 +33,68 @@
     "file": "task-board.md",
     "archive": "task-board-archive.md",
     "ceiling": 4000,
+    "ceilingBytes": 262144,
+    "maxLineChars": 4096,
+    "fields": { "remaining": "Remaining", "lastEvidence": "Last evidence", "decision": "Decision/blocker", "trap": "Trap", "history": "Full history", "humanStep": "Human step" },
+    "$comment_fields": "Field names of the compact item template. If the board is written in another language, put the translated field names here; the board scripts read them from this map.",
+    "lint": { "mode": "warn", "escapeEnv": "BOARD_LINT" },
+    "$comment_lint": "Commit-time board lint. 'warn' prints findings, 'block' stops the commit. Start with warn; switch to block once the findings are real.",
+    "humanStepExpiryWeeks": 4,
     "doneSignals": ["done", "closed", "live", "deployed", "merged", "shipped", "deploy ok"],
     "partialSignals": ["remaining", "pending", "awaiting", "blocked", "todo"],
     "$comment_signals": "Used by scripts/board-staleness.mjs. For a non-English language ADD that language's words here, or the sentinel never fires."
   },
-  "coordination": { "file": "coordination.md", "archive": "coordination-archive.md", "ceiling": 1200 },
+  "coordination": { "file": "coordination.md", "archive": "coordination-archive.md", "ceiling": 1200, "ceilingBytes": 131072, "staleClaimDays": 7 },
   "memoryBank": {
     "dir": "memory-bank",
     "ceiling": 800,
+    "ceilingBytes": 65536,
+    "maxLineChars": 2048,
     "windowDays": 14,
+    "mapBudgetBytes": 8000,
     "pendingPhrases": [
       "pending", "awaiting", "waiting for", "not yet deployed", "flag off", "dark-launched", "blocked",
       "bekliyor", "bekleniyor", "henüz", "bayrak kapalı", "karanlık"
     ]
   },
-  "docs": { "reports": "reports", "specs": "specs", "workingRules": "docs/agent-working-rules.md", "memoryBankGuide": "docs/memory-bank-guide.md" },
-  "delegation": { "warnAfterReads": 5, "denyAfterReads": 10, "subagents": { "scout": "scout", "worker": "worker", "verifier": "verifier" } },
-  "session": { "autoPull": true, "skills": ["gate-ritual", "orchestrator", "new-skill"] },
+  "docs": { "reports": "reports", "specs": "specs", "workingRules": "docs/agent-working-rules.md", "memoryBankGuide": "docs/memory-bank-guide.md", "memoryBankSchema": "docs/memory-bank-schema.json", "toolTraps": "docs/tool-traps.md" },
+  "delegation": {
+    "warnAfterReads": 5, "denyAfterReads": 10, "countShell": true,
+    "warnAfterEdits": 15, "denyAfterEdits": 0,
+    "$comment_edits": "A run of edits by the main session warns once at warnAfterEdits. denyAfterEdits 0 = never deny; set a number for a hard stop.",
+    "subagents": { "scout": "scout", "analyst": "analyst", "worker": "worker", "verifier": "verifier" }
+  },
+  "session": {
+    "autoPull": true,
+    "autoPullRepos": true,
+    "ensureHooksPath": true,
+    "staleDocHours": 24,
+    "skills": ["gate-ritual", "orchestrator", "handoff", "new-skill"],
+    "lines": [
+      { "id": "size", "command": "node scripts/md-size-watch.mjs --line" },
+      { "id": "board", "command": "node scripts/board-staleness.mjs --line" },
+      { "id": "coordination", "command": "node scripts/coordination-archive.mjs --line" },
+      { "id": "humans", "command": "node scripts/human-queue.mjs --line" },
+      { "id": "hygiene", "command": "node scripts/git-hygiene-watch.mjs --line" },
+      { "id": "orphans", "command": "node scripts/orphan-process.mjs --line" },
+      { "id": "memory-bank", "command": "node scripts/memory-bank-check.mjs --line" },
+      { "id": "rules", "command": "node scripts/rule-inventory.mjs --line" }
+    ],
+    "$comment_lines": "Status lines of the SessionStart note. Contract: the command prints ONE line or nothing; its exit code is ignored. Add your own sentinel here instead of editing the hook. This array replaces the default list as a whole.",
+    "context": { "warnTokens": 300000, "idleMinutes": 60, "idleMinTokens": 100000, "handoffSkill": "handoff", "offEnv": "CONTEXT_WATCH" }
+  },
+  "git": {
+    "protectedBranches": [],
+    "shield": { "escapeEnv": "AGENT_DESTRUCTIVE_OK", "forbiddenCommands": [] },
+    "$comment_shield": "forbiddenCommands: [{ \"pattern\": \"<regex>\", \"reason\": \"<why>\" }] — extra shell commands the shield denies (a flag that gives false greens, a call that spends real money).",
+    "hygiene": { "autoClean": false, "branchMinAgeHours": 24, "worktreeMinAgeHours": 6, "staleStashDays": 14, "worktreeDebtAsk": 5, "ignoreFile": "scripts/git-hygiene-ignore.json" },
+    "$comment_hygiene": "autoClean false: the session start only reports merged branches and finished worktrees. true: it also removes what is provably lossless and writes a recovery log."
+  },
+  "preCommit": { "checks": [] },
+  "$comment_preCommit": "Extra commit-time checks: [{ \"id\": \"migrations\", \"command\": \"node scripts/x.mjs {files}\", \"whenStaged\": [\"db/migrations/**\"] }]. Board lint and the coordination archive check are built in.",
+  "pushGate": { "maxBlobMB": 2, "bigBlobMode": "warn", "bigBlobEnv": "BIG_FILE_OK", "requireHooksPath": true },
   "testRunner": { "processName": "chrome-headless-shell", "maxWorkers": 2, "maxProcesses": 8, "triggerPattern": "playwright|e2e" },
+  "orphans": { "pattern": "node --test", "maxAgeMinutes": 60, "maxRssMB": 4096 },
+  "codex": { "riskyPatterns": [] },
   "secretScan": { "tool": "gitleaks", "failClosed": true, "skipEnv": "SKIP_PUSH_GATE" }
 }
