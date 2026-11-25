@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// Enforces: R-48
 /**
  * done-gate - a task may only be closed (heading flipped to done) when the configured gate
  * command has really run green on the code being committed.

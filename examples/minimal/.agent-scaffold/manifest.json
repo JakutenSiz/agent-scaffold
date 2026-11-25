@@ -11,7 +11,7 @@
       "class": "engine"
     },
     ".claude/agents/verifier.md": {
-      "sha256": "780c1a052150f3def5dce02d72ff023a6247a8afe8b155962894d0b62cb5e3a1",
+      "sha256": "1d8bf4cb08a1a882c4cef7216c66716973e0c6d91673814bee71245b165bd93e",
       "class": "engine"
     },
     ".claude/agents/worker.md": {
@@ -63,7 +63,7 @@
       "class": "engine"
     },
     ".claude/hooks/secret-shield.mjs": {
-      "sha256": "a17b324efb437f65e551084e9760263bb91d735dfbdc6e693459a79f0b567cfa",
+      "sha256": "df450ff011619a567f8533b0b6770df3b74a150b3e2958a63b01063c3c3ce403",
       "class": "engine"
     },
     ".claude/hooks/session-context.mjs": {
@@ -79,11 +79,11 @@
       "class": "merge"
     },
     ".claude/skills/gate-ritual/SKILL.md": {
-      "sha256": "b016bafee2a8e4e7e7c7711ba3a52609d4ffd5ecbd449496a48e862570eb0bb5",
+      "sha256": "46f5909f3c7ef34fc368b1e2e7f1153a1dfb52a8a84032f43d073bffbbdd6f95",
       "class": "hybrid"
     },
     ".claude/skills/handoff/SKILL.md": {
-      "sha256": "afc92339fb3fa03ae278237733331a849f41b90a2db7a9dffd9efc6338354ef0",
+      "sha256": "5c74bde2b49fd81f63619f9949296ba84b4e0de940ae8d3ceb3aa63b5173fc84",
       "class": "hybrid"
     },
     ".claude/skills/new-skill/SKILL.md": {
@@ -143,7 +143,7 @@
       "class": "seed"
     },
     "docs/agent-working-rules.md": {
-      "sha256": "9c4ad00da96045275465e7fc5eb8148470848dbfe136f2f3493a51d320808532",
+      "sha256": "f1238a841162bb6d4be857c46bd8dad7717329e202e6aa287ce4bc9bab88f12f",
       "class": "hybrid"
     },
     "docs/memory-bank-guide-appendix.md": {
@@ -235,11 +235,15 @@
       "class": "engine"
     },
     "scripts/done-gate.mjs": {
-      "sha256": "b1a02b5a2952105b00db2da18bfae4b1f43cd0c57af4081b44702bf185cc4963",
+      "sha256": "1384fed51280d5ee478954548b795e42853bbdf44ff12bf7bd3ed317c903160b",
       "class": "engine"
     },
     "scripts/gate-record.mjs": {
-      "sha256": "5df197ee1bae9220bc37a4366954a46da5a167d050a4027198f0512bbac58a4f",
+      "sha256": "2a5cbc6685b75fd9e7a32aff5feb233fcf012e7c1a638f225c182cf36a683521",
+      "class": "engine"
+    },
+    "scripts/gate-table.mjs": {
+      "sha256": "d5c182127ae03f509d7bd34759568bb70c54cc35fb201bd1bd1299efda0b7d3b",
       "class": "engine"
     },
     "scripts/git-hygiene-clean.mjs": {
@@ -255,7 +259,7 @@
       "class": "engine"
     },
     "scripts/handoff-packet.mjs": {
-      "sha256": "431409c4687f75add2eab6b8a33f91df25af69faa71ed750fa9dde56c6548fbb",
+      "sha256": "75b64a549229b3e86cb07efa07213e271e6cac5ceabc77a9cc60351f95d855b1",
       "class": "engine"
     },
     "scripts/human-queue.mjs": {
@@ -272,6 +276,10 @@
     },
     "scripts/lib/coordination-table.mjs": {
       "sha256": "4638cbce563f4b59173d83e65cb0c06891b55992d301eb08907b5ad8471b4ee3",
+      "class": "engine"
+    },
+    "scripts/lib/gates.mjs": {
+      "sha256": "2c89f24cbd96ba670b3ddf2af2d3c3572e412029332a5d719a57a9e5c770a4e7",
       "class": "engine"
     },
     "scripts/lib/git-hygiene-common.mjs": {

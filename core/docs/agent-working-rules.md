@@ -83,6 +83,12 @@ decision-ready summaries enter the main context.
   tool and call the matching skill before a ritual step. The recipe for writing one is
   the `new-skill` skill.
 
+- [R-13] The scaffold is installed and refreshed by its CLI, never by hand-copying files:
+  `agent-scaffold install` writes it, `agent-scaffold upgrade` refreshes the engine files
+  and leaves a `<file>.new` next to anything you changed, `agent-scaffold doctor` reports
+  what is missing. Reconcile every `.new` file, then delete it. `upgrade` does not wire
+  git hooks; `doctor` fails on a missing wiring.
+
 ## 4. Sessions
 
 - [R-20] Read the SessionStart note (Claude Code / Codex hook) or, without hooks, do what
@@ -117,6 +123,11 @@ decision-ready summaries enter the main context.
   cannot clear it yourself. Ownership belongs to the work item, not the session: hand
   over at a stage boundary (decision → spec → code → combined gate → deploy →
   acceptance), never mid-stage without a note in "Handed-over work".
+
+- [R-28] A handoff is built from observed facts, not from memory: run
+  `node scripts/handoff-packet.mjs <item-code> --write` and commit the one file it writes.
+  The packet has a byte budget and masks secret-looking values; packets nobody owns any
+  more are listed by `--prune`.
 
 ## 5. Shared checkout
 
@@ -166,6 +177,15 @@ Several sessions and workers use the same checkout at the same time.
 - [R-46] The same shields run for every tool that can be hooked. Codex gets them through
   `codex-guard-adapter` (an "ask" becomes a "deny" there); a tool without hooks follows
   these rules by hand and the tool-independent git hooks still apply.
+
+- [R-47] The `secret-shield` hook stops an agent from reading or overwriting secret files
+  (`.env`, private keys, credential files) by accident. It is an accident-level,
+  name-based heuristic, not a sandbox, and it has no escape prefix: relaxing it is the
+  human's edit of `secrets.*` in the config.
+- [R-48] A task is closed only after the gate has run green on the code being committed:
+  `node scripts/gate-record.mjs` records the result for the current code state, and the
+  commit gate (`done-gate --staged`) refuses a done heading without a matching record. If
+  the code changes after the record, record again.
 
 ## 7. Decision authority
 
@@ -234,3 +254,6 @@ logged by the gate and is the human's call, not the agent's.
 | large new file | push | `BIG_FILE_OK=1` |
 | deploy lock | push to a deploy branch | `DEPLOY_LOCK=skip` |
 | `context-watch` | each prompt | `CONTEXT_WATCH=off` |
+| `secret-shield` | before the tool call | none by design: the human edits `secrets.mode` / `secrets.allow` in the config |
+| `done-gate` | commit | `PRE_COMMIT_SKIP_DONE_GATE=1`, with the reason in the commit message |
+| equivalent-merge detection (`git.hygiene.equivalentMerge`) | session start | `off` is the default; set `cherry` to opt in |

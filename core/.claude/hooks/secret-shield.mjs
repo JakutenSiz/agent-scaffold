@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// Enforces: R-47
 // Secret shield — PreToolUse hook for Read|Edit|Write|MultiEdit|NotebookEdit|Grep|Glob|Bash|PowerShell.
 // Stops an agent from reading or overwriting secret files (.env, private keys, credential
 // files) by accident. Accident level only: it is a name-based heuristic, not a sandbox.

@@ -4,8 +4,9 @@
 > Your job: turn whatever is inside `proje/` into a project that AI agents can work on
 > well — with a rulebook, a memory bank, a task board, a coordination file, delegation
 > roles, guards and rituals — following the procedure below. Everything you generate
-> goes **inside `proje/`**, so that `proje/` becomes the finished, self-contained project
-> the human can move anywhere.
+> goes **inside the target directory** — `proje/` unless the human names another one (an
+> existing repo can be the target) — so that it becomes the finished, self-contained
+> project. Below, `proje/` stands for that target.
 >
 > This file is tool-agnostic. It works for Claude Code, Codex CLI, Gemini CLI or any
 > agent that can read files, run shell commands and write files. Parts that only one tool
@@ -142,7 +143,8 @@ fill every key from the inventory and the answers. Rules:
   through that map.
 - `session.skills`: the skills you will install in step 7. `session.lines`: keep the
   default list; add a line only for a sentinel the project already has.
-- Leave the modes at their defaults (`board.lint.mode: "warn"`, `pushGate.bigBlobMode:
+- `profile`: keep `standard` unless the human asked for another (`minimal` | `strict`;
+  `docs/CUSTOMIZING.md` § Profiles). Leave the modes at their defaults (`board.lint.mode: "warn"`, `pushGate.bigBlobMode:
   "warn"`, `git.hygiene.autoClean: false`). They are raised later, on purpose, once the
   warnings have proven to be real.
 - `git.protectedBranches`: long-lived branches other than the deploy branches that must
@@ -154,12 +156,36 @@ fill every key from the inventory and the answers. Rules:
 
 ## 5. Install the fixed layer
 
-Copy the contents of `core/` into `proje/` (for `multi` layout: into the umbrella root,
-the directory that contains the repos). Do **not** copy `agent-scaffold.config.example.json`
-and do not copy `core/templates/` — templates are consumed in step 6, not installed.
-Append `core/templates/gitignore.snippet` to `proje/.gitignore` (create it if missing):
-the hooks write per-session state under `.claude/` and `ensure-agent-compat` creates
-links that must never be committed.
+Run the installer from the root of this package (Node ≥ 18):
+
+```
+node bin/agent-scaffold.mjs install proje --dry-run   # optional: lists what would be written
+node bin/agent-scaffold.mjs install proje
+```
+
+`install` reads `proje/agent-scaffold.config.json` (or `--config <file>`), then in one
+run: copies the fixed layer from `core/`, merges `core/templates/gitignore.snippet` into
+`.gitignore`, writes the config-driven documents (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`,
+the board, the coordination file, the reports and specs READMEs, the memory-bank
+templates), creates the `.agents/skills` and `.codex/hooks` links, sets
+`core.hooksPath` to `.githooks` in a git repository, records every file in
+`.agent-scaffold/manifest.json`, and runs `node --check` on the installed scripts and
+hooks (skip with `--no-check`). Add `--dry-run` first on an existing repo.
+
+It **never overwrites** a file that already exists: the new content is written next to
+it as `<file>.new` and listed in the output. For each `.new` file:
+
+- `.claude/settings.json`: merge the `hooks` and `permissions.allow` entries into theirs
+  by hand, keep theirs, delete the `.new`.
+- `docs/*.md`, `scripts/*`, `.claude/agents/*`, `.claude/skills/*`: keep the human's
+  file unless it is plainly the same thing; take over what is useful from the `.new`
+  file, delete the `.new`, and mention each case in the report.
+- `CLAUDE.md`: append a marked section from the `.new` file (step 6), do not replace.
+
+When it finishes, run `node bin/agent-scaffold.mjs doctor proje`; every FAIL must be
+fixed before you go on (WARN rows go into the report). The `tests/` directory of this
+package tests `core/` itself and is **not** installed. A later package version is applied
+with `upgrade` (see `docs/CUSTOMIZING.md`).
 
 What lands where:
 
@@ -184,12 +210,15 @@ proje/
   scripts/git-hygiene-clean.mjs     removes only what is provably lossless (dry-run by default)
   scripts/orphan-process.mjs        lists hung test-runner processes
   scripts/rule-inventory.mjs        which rule is enforced by code, which is advice
+  scripts/gate-record.mjs           records that doneGate.command ran green on the current code (only when the command is set)
+  scripts/done-gate.mjs             commit gate: a board item may be closed only with such a record
+  scripts/handoff-packet.mjs        builds the handoff note from observed facts, within a byte budget
   scripts/delegation-share.mjs      measures how much the main session still does itself (Claude Code transcripts)
   scripts/pre-push-check.mjs        the logic behind .githooks/pre-push
   scripts/pre-commit-check.mjs      the logic behind .githooks/pre-commit
   scripts/list-configured-repos.mjs helper used by setup-hooks.*
   .claude/settings.json             Claude Code hook wiring + safe read-only allowlist
-  .claude/hooks/*.mjs               session-context, context-watch, read-guard, git-shield, map-guardian, edit-check, push-guard, test-runner-guard, ensure-agent-compat, codex-guard-adapter (+ lib/)
+  .claude/hooks/*.mjs               session-context, context-watch, read-guard, git-shield, map-guardian, edit-check, push-guard, test-runner-guard, secret-shield, ensure-agent-compat, codex-guard-adapter (+ lib/)
   .claude/agents/{scout,analyst,worker,verifier}.md
   .claude/skills/{gate-ritual,orchestrator,handoff,new-skill}/SKILL.md
   .codex/config.toml, .codex/hooks.json
@@ -199,27 +228,13 @@ proje/
   setup-hooks.sh / setup-hooks.bat  one-time: core.hooksPath for every repo
 ```
 
-The `tests/` directory of this package tests `core/` itself and is **not** copied.
-
-Merge rules when a file already exists in `proje/`:
-
-- `.claude/settings.json`: merge the `hooks` and `permissions.allow` arrays; keep theirs.
-- `.claude/agents/*`, `.claude/skills/*`: add ours only if the name is free.
-- `docs/*.md`, `scripts/*`: if a same-named file exists, write ours as `<name>.scaffold.<ext>`
-  and list it in the report.
-
-Then, if Node is available:
-
-```
-cd proje && for f in scripts/*.mjs scripts/lib/*.mjs .claude/hooks/*.mjs .claude/hooks/lib/*.mjs; do node --check "$f" || echo "FAIL $f"; done
-```
-
 ---
 
 ## 6. Generate the project layer (fill the templates)
 
-Templates live in `core/templates/`. Each contains `{{PLACEHOLDERS}}` and
-`<!-- fill: … -->` notes. Write the filled result to the path given below. Everything you
+`install` already wrote the documents below with the config values filled in; what is
+left in them are the `<!-- fill: … -->` notes (and the memory-bank templates as they are).
+Their sources live in `core/templates/`. Complete each file at the path given below. Everything you
 write must be true for *this* project; when you are not sure, write "Unknown as of <date>"
 and add a board item.
 

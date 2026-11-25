@@ -56,6 +56,7 @@
     "windowDays": 14,
     "mapBudgetBytes": 8000,
     "$comment_reuseGate": "reuseGate (block | off) is set by the profile: off keeps the map injection but never denies a write.",
+    "$comment_pendingPhrases": "An entry containing one of these phrases is never archived. Add the phrases of your own language; the Turkish words below are examples of that and may stay or go.",
     "pendingPhrases": [
       "pending", "awaiting", "waiting for", "not yet deployed", "flag off", "dark-launched", "blocked",
       "bekliyor", "bekleniyor", "henüz", "bayrak kapalı", "karanlık"

@@ -59,6 +59,7 @@ scripts/coordination-archive.mjs
 scripts/delegation-share.mjs
 scripts/done-gate.mjs
 scripts/gate-record.mjs
+scripts/gate-table.mjs
 scripts/git-hygiene-clean.mjs
 scripts/git-hygiene-ignore.json
 scripts/git-hygiene-watch.mjs
@@ -67,6 +68,7 @@ scripts/human-queue.mjs
 scripts/lib/board-format.mjs
 scripts/lib/config.mjs
 scripts/lib/coordination-table.mjs
+scripts/lib/gates.mjs
 scripts/lib/git-hygiene-common.mjs
 scripts/lib/main-module.mjs
 scripts/lib/worktree-check.mjs

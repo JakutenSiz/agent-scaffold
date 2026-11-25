@@ -19,6 +19,7 @@ cheaper, and a short session is only safe if nothing lives only in the chat.
 1. **State it in one sentence:** is the work done or half-done? If a subagent or background command is still running, wait for it; never hand over with a half-finished worker. If you are not at a stage boundary, first reach the nearest one (a committed, consistent state).
 2. **Save** (only what changed; a decision left in the chat is a lost decision):
    - Task board item: body **and heading** updated in the same edit, evidence attached, `**Remaining:**` current.
+   - Handoff packet: `node scripts/handoff-packet.mjs <board code> --write [--note "<text>"]` writes `<handoff.dir>/<code>.md` from observed facts (item, claim, branch, ahead/behind, dirty files, last commits, `PUSH PENDING`) within `handoff.budgetBytes`, with secret-looking values masked. Commit that file with the rest and point to it from the handover note instead of retyping the state.
    - Coordination file, work DONE: do not write a handover note. Set the claim's State cell to `✅ DONE <date>`, then run `node scripts/coordination-archive.mjs --write` (the row moves to the archive).
    - Coordination file, work HALF-DONE: ONE note per job under `## Handed-over work` (board code in the title, an expiry date a week out). If a note for that code exists, update it in place. At most 8 lines: what was done (%), what remains, what to watch out for, the first command to run next. Detail of what was done goes to the board item; the note only points to it.
    - A handed-over note you took over: when you start the work, turn it into a claim and delete the note (full text to the archive).
@@ -27,6 +28,7 @@ cheaper, and a short session is only safe if nothing lives only in the chat.
    - Decisions the user gave this session: record them in the user's own words with the date.
 3. **Commit** only YOUR paths. Shared index: `git diff --cached --stat` first, then `git commit -m "<message>" -- <paths>`. Never `git add -A`, `git stash`, `git reset --hard`. In a multi-repo layout, a commit inside a sub-repo needs its pointer bump in the parent repo afterwards. If a busy peer session is editing a shared markdown file, ask it first.
 4. **Push:** on a feature branch, push. On the deploy branch a push IS a deploy: only with an existing, explicit go-ahead for this work, through the normal gates (`gate-ritual`). Without it, do not push; the commit stays local and the handover note says `PUSH PENDING: <repo> <branch> <sha>`. Behind the remote: `git pull --ff-only` first, then push in a SEPARATE command. If a gate stops the push, record the reason; do not bypass it.
+   After the work is DONE and its claim is archived, `node scripts/handoff-packet.mjs --prune --write` removes packets that no open claim or note owns.
 5. **Verify:** `git status --short` shows no uncommitted file of yours.
 6. **Close to the user (at most 5 lines):** what is done · what remains · push state · then exactly these two lines:
    - `Type /clear in this window now.`

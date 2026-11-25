@@ -111,30 +111,110 @@ of `CLAUDE.md`.
 
 ## Updating the package itself
 
-`core/` is meant to be copied, not linked. To pull a newer `core/` into an existing
-project: copy `scripts/`, `.claude/hooks/`, `.claude/agents/`, `.githooks/`,
-`setup-hooks.*`, `docs/memory-bank-guide.md` (+ appendix and schema) and
-`docs/tool-traps.md` over the old ones (they carry no project facts), diff
-`.claude/settings.json` and `.codex/hooks.json` by hand, and leave everything generated
-untouched. `docs/agent-working-rules.md` carries one project section (§8, the guard-rails
-the human has set): copy that section across before replacing the file. Skills that the
-bootstrap filled in (`gate-ritual`) are merged by hand; new ones (`handoff`) are copied.
+```
+node bin/agent-scaffold.mjs upgrade <project-dir> --dry-run   # what would change
+node bin/agent-scaffold.mjs upgrade <project-dir>
+node bin/agent-scaffold.mjs doctor  <project-dir>
+```
 
-From v0.1 to v0.2 there are four things to do by hand as well:
+`upgrade` refreshes the engine files from the newer package and records the result in
+`.agent-scaffold/manifest.json`. A file you changed by hand is never overwritten: the new
+version is written next to it as `<file>.new`. Reconcile each one (take what you want
+from the `.new` file, keep your edits), delete the `.new` file, and `doctor` stops
+warning about it. Seed files (the generated documents) and your config are not touched.
 
-1. Config: set `"version": 2` and add the new keys you want to change from the example
-   (`humans`, `board.fields`, `session.lines`, `git`, `preCommit`, `pushGate`). Missing
-   keys fall back to the defaults, so this can be done gradually.
-2. Coordination file: claims are now single rows of the `## Active claims` table with
-   the columns `Session | Item code | Since | State`, closed by writing `✅ DONE <date>`
-   into the State cell. Replace the `## Protocol` section with the one from the new
-   template, convert open claim blocks to rows, and move closed blocks to the archive.
-3. Task board: add the `**Human step:**` line to the item template in §9 and to the
-   open items whose next step is a human's.
-4. Run `sh setup-hooks.sh` again (it now also makes the hooks executable and there is a
-   new pre-commit hook), then `node scripts/rule-inventory.mjs --strict` and
-   `node scripts/memory-bank-check.mjs`. If your memory-bank headings are not the
-   template's, adjust `docs/memory-bank-schema.json`.
+`upgrade` does not wire anything: it neither creates the `.agents/skills` and
+`.codex/hooks` links nor sets `core.hooksPath`. `install` does both; after a new clone,
+run `git config core.hooksPath .githooks` (or `sh setup-hooks.sh`). `doctor` reports a
+missing wiring as FAIL (empty `core.hooksPath`, non-executable hook files, broken
+links), so run it after every upgrade.
+
+A project installed before the CLI existed (v0.1, or v0.2 copied by hand) has no
+manifest: run `install` into it once. It never overwrites an existing file, so every
+difference comes out as a `.new` to reconcile. The v0.1 to v0.2 changes that still need a
+human decision are the config keys (`"version": 2`, `humans`, `board.fields`,
+`session.lines`, `git`, `preCommit`, `pushGate`), the coordination file's claim-row
+table (`Session | Item code | Since | State`) and the `**Human step:**` line in the board
+template.
+
+## Profiles
+
+`"profile": "minimal" | "standard" | "strict"` sets the thresholds and gate modes that
+are not written in your config. `standard` is the built-in default; a value you write in
+`agent-scaffold.config.json` always wins over the profile.
+
+| Setting | minimal | standard | strict |
+|---|---|---|---|
+| `board.lint.mode` | off | warn | block |
+| `coordination.checkMode` | warn | block | block |
+| `delegation` reads warn / deny | 8 / never | 5 / 10 | 3 / 6 |
+| `delegation` edits warn / deny | 30 / never | 15 / never | 10 / 25 |
+| `session.context.warnTokens` | 600000 | 300000 | 200000 |
+| `pushGate` large file (MB / mode) | 10 / warn | 2 / warn | 1 / block |
+| `pushGate.requireHooksPath`, `mapGate`, `confirm` | off, off, off | on, block, ask | on, block, ask |
+| `memoryBank.reuseGate` | off | block | block |
+| `git.hygiene.worktreeDebtAsk` | 20 | 5 | 2 |
+| `testRunner.maxWorkers` | 4 | 2 | 1 |
+| `doneGate.mode` | off | block | block |
+
+Fixed in every profile: the destructive-git denial, the subagent-recursion denial,
+`secretScan.failClosed` and `secrets.mode`. Start with `minimal` if the team is new to
+agent guard-rails, move to `standard` after a week of reading the warnings, and use
+`strict` for a repository where a bad push is expensive. `doneGate.mode` only matters once
+`doneGate.command` is set.
+
+## Secret shield
+
+`secrets` configures the `secret-shield` hook: `mode` (`block` | `warn` | `off`),
+`protectedPaths` (globs; one without `/` matches the base name) and `allow` (globs
+subtracted from the protected list). Both lists replace the defaults as a whole, so copy
+the example first. The hook is accident-level: it matches file names, resolves `..` and
+symlinks, and looks through shell forms such as redirections, `bash -c` bodies, `$(...)`
+and `git show <ref>:<path>`. It does not stop a determined agent. Known gaps are
+interpreter bodies (`python -c`, `node -e`), paths built from variables, directory-level
+access (`grep -r`, `tar`, `find`), `printenv`, wildcards in a directory component, and
+Codex sessions (only its shell tool is bridged). It fails open on any internal error and
+has no escape prefix: relaxing it is your edit of this block. For real protection use
+the push-time secret scan and keep secrets out of the checkout.
+
+## Done gate
+
+Closing a board item should mean the gate ran green on the code. Set `doneGate.command`
+(for example `npm test`); empty means the gate does not exist. The flow is: stage or
+commit the code, run `node scripts/gate-record.mjs` (it runs the command once and records
+the result for exactly this code state), flip the item to done, commit. At commit time
+`done-gate --staged` checks that a matching record exists; it never runs the command
+itself. The code state is a hash of the staged content with the exempt paths removed
+(board, coordination, memory bank, reports, specs, handoff dir and
+`doneGate.exempt`), so a board-only commit does not stale the record, while a code
+change after the record does. `gate-record` refuses to run on a working tree that
+differs from the index. `timeoutSec` limits the run (a timeout is a red record).
+Escape: `PRE_COMMIT_SKIP_DONE_GATE=1`, with the reason in the commit message.
+
+## Equivalent-merge detection
+
+`git.hygiene.equivalentMerge` is `off` (default) or `cherry`. By default a branch counts
+as merged only when it is an ancestor of the default or a deploy branch. `cherry` also
+recognises branches whose content arrived by squash merge or cherry-pick, so the session
+note stops listing them as unmerged. Limits: a squash that was reverted later still
+reads as merged (the deleted tip stays recoverable from the cleanup journal), and a
+target that changed a neighbouring line before the merge hides the match (a safe false
+negative).
+
+## Handoff packet
+
+`handoff.dir` (default `handoffs`) and `handoff.budgetBytes` (default 8192) configure
+`node scripts/handoff-packet.mjs <item-code> --write`. The packet is built from observed
+facts (board item, claim row, per-repo branch, ahead/behind, dirty files, last commits,
+`PUSH PENDING`, worktrees) and is cut from the end when it exceeds the budget, with each
+cut announced. Token-like values (JWTs, long hex and base64 runs) become `[REDACTED]`.
+`--prune` lists packets that no open claim or note owns; `--prune --write` deletes them.
+
+## Board signal words
+
+`board.doneSignals` and `board.partialSignals` are not in the built-in DEFAULTS of the
+config; when you leave them out, a fallback list in `scripts/lib/board-format.mjs` is
+used. Set them yourself when your board is written in another language.
 
 ## Running the bootstrap again
 

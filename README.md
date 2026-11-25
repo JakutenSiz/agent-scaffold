@@ -12,29 +12,53 @@ end of a long session does not hold. What must hold is moved to a deterministic 
 session start, commit, push — and enforced there. `docs/DESIGN.md` has the measured
 failure behind each mechanism.
 
-## Use it in three steps
+## Quick start
 
-1. Put your project into `proje/`. A source tree, a git clone, several repos side by
-   side, or just a `proje/PROJECT.md` describing what you want to build.
+Requirements: Node ≥ 18 and git.
+
+1. Put your project into `proje/` (a source tree, a git clone, several repos side by
+   side, or just a `proje/PROJECT.md` describing what you want to build). Another
+   directory works too; below, `proje/` stands for it.
 2. Open your agent (Claude Code, Codex, Gemini CLI, …) in this folder and say:
 
    > Read `START.md` and do what it says.
 
-3. Answer its questions. Round 1, before it generates anything: the few facts it cannot
-   derive from the code (language, deploy branches, who instructs agents and who must
-   approve what). Round 2, after generation: the blanks only you know (model ids, a
-   command it could not find, what a deploy script does). Answers go straight into the
-   files; what you skip becomes a task on the board. When it reports done, `proje/` is
-   your project with the whole structure inside. Move it wherever you like.
+   The agent discovers the project, asks the few facts it cannot derive (language, deploy
+   branches, who instructs agents and who must approve what), writes the config and runs
+   `node bin/agent-scaffold.mjs install proje`, then fills the blanks that are left.
+   Round 2 of its questions comes after generation: model ids, a command it could not
+   find, what a deploy script does. What you skip becomes a task on the board.
+3. Check the result: `node bin/agent-scaffold.mjs doctor proje` prints PASS, WARN or FAIL
+   per row and exits 1 on any FAIL.
+
+You can also fill `agent-scaffold.config.json` yourself and run `install` without an
+agent; `install --dry-run` lists what it would write and never overwrites an existing
+file (it writes `<file>.new` instead). `upgrade` applies a newer package later; see
+`docs/CUSTOMIZING.md`. A generated example is in [`examples/minimal`](examples/minimal)
+(regenerate with `npm run example`).
+
+## Profiles
+
+`"profile"` in the config picks how strict the gates are; a value you write yourself
+always wins. Fixed in every profile: the destructive-git denial, the subagent-recursion
+denial, the secret scan fail-closed, the secret-file shield.
+
+| Profile | For | What changes |
+|---|---|---|
+| `minimal` | trying the scaffold, small projects | board lint off, repo-map and deploy-confirm gates off, no read/edit denial, context warning at 600k tokens, done gate off |
+| `standard` (default) | most teams | board lint warns, reads denied after 10, large files warn, repo-map, hooks-path and deploy-confirm gates on |
+| `strict` | repositories where a bad push is expensive | board lint blocks, reads denied after 6 and edits after 25, large files block at 1 MB, one test worker, done gate blocks |
+
+The complete table is under "Gates" below and in `docs/CUSTOMIZING.md` § Profiles.
 
 ## Where to work afterwards
 
-This folder is a one-time workbench. When the bootstrap is done, move `proje/` to its
-permanent place (or, for an existing repo, copy the generated files into your real clone)
-and open your agent **at that project's root** — the directory that holds
-`agent-scaffold.config.json` and `.claude/`. Hooks resolve their paths from the directory
-the agent is opened in; opened in a subfolder such as `src/`, nothing fires and nothing
-warns. For a multi-repo layout the root is the umbrella directory that contains the repos.
+When the bootstrap is done, move `proje/` to its permanent place (or, for an existing
+repo, install straight into your clone) and open your agent **at that project's root** —
+the directory that holds `agent-scaffold.config.json` and `.claude/`. Hooks resolve
+their paths from the directory the agent is opened in; opened in a subfolder such as
+`src/`, nothing fires and nothing warns. For a multi-repo layout the root is the
+umbrella directory that contains the repos.
 
 ## What you get inside `proje/`
 
@@ -49,9 +73,9 @@ warns. For a multi-repo layout the root is the umbrella directory that contains 
 | `coordination.md` + archive | Claims (one table row each), messages and hand-overs between agents |
 | `reports/`, `specs/` | Durable research syntheses; recipes handed to workers |
 | `.claude/agents/` | `scout` (cheap explorer), `analyst` (read-only flow and root-cause analysis), `worker` (mechanical edits), `verifier` (gates). Every report ends with a `Better path:` line |
-| `.claude/hooks/` | `session-context` (pull, freshness, config-driven status lines), `context-watch` (tells the agent to hand over when the context grows), `read-guard` (forces delegation; counts shell reads too), `git-shield` (denies `stash`/`reset --hard`/`checkout --`/`clean -f` in a shared checkout), `map-guardian` (injects the relevant part of the repo map, blocks duplicate shared pieces), `edit-check`, `push-guard` (behind-push, repo-map, hooks-path, deploy-lock and deploy-branch gates), `test-runner-guard`, `ensure-agent-compat`, `codex-guard-adapter` (the same shields for Codex) |
+| `.claude/hooks/` | `session-context` (pull, freshness, config-driven status lines), `context-watch` (tells the agent to hand over when the context grows), `read-guard` (forces delegation; counts shell reads too), `git-shield` (denies `stash`/`reset --hard`/`checkout --`/`clean -f` in a shared checkout), `map-guardian` (injects the relevant part of the repo map, blocks duplicate shared pieces), `edit-check`, `push-guard` (behind-push, repo-map, hooks-path, deploy-lock and deploy-branch gates), `test-runner-guard`, `secret-shield` (blocks reading or overwriting `.env`, keys and credential files by accident; see Gates below), `ensure-agent-compat`, `codex-guard-adapter` (the same shields for Codex) |
 | `.claude/skills/` | `gate-ritual`, `orchestrator`, `handoff`, `new-skill` |
-| `scripts/` | Sentinels and movers: `md-size-watch`, `memory-bank-archive`, `memory-bank-check`, `repomap-check`, `board-staleness`, `board-lint`, `board-archive`, `board-duplicate`, `human-queue`, `coordination-archive`, `git-hygiene-watch`, `git-hygiene-clean`, `orphan-process`, `rule-inventory`, `delegation-share`, `pre-commit-check`, `pre-push-check` + shared helpers in `lib/` |
+| `scripts/` | Sentinels and movers (plus `gate-record`, `done-gate`, `handoff-packet`): `md-size-watch`, `memory-bank-archive`, `memory-bank-check`, `repomap-check`, `board-staleness`, `board-lint`, `board-archive`, `board-duplicate`, `human-queue`, `coordination-archive`, `git-hygiene-watch`, `git-hygiene-clean`, `orphan-process`, `rule-inventory`, `delegation-share`, `pre-commit-check`, `pre-push-check` + shared helpers in `lib/` |
 | `.githooks/`, `setup-hooks.*` | Tool-independent gates: pre-commit (board lint, coordination check, your own checks — only for what is staged), pre-push (secret scan and syntax gate on the pushed content for deploy branches, large-new-file check) |
 | `.codex/` | Codex profiles mirroring the roles, hook wiring |
 | `agent-scaffold.config.json` | Every parameter in one place: repos, commands, ceilings, deploy branches, labels, humans, status lines, gate modes, language |
@@ -85,8 +109,9 @@ What was verified: the test suite on macOS with Node 22, and an end-to-end insta
 a scratch project with the hooks driven by synthetic payloads. v0.1 was bootstrapped
 end to end on two projects (a small Node service and a Python/uv research repo); the
 v0.2 bootstrap procedure has not yet been re-run by a fresh agent on a new project. Not
-exercised: a multi-repo layout end to end, Codex actually dispatching the adapter (it
-must trust the project hooks first), Gemini as the bootstrapping agent, Linux, Windows.
+exercised by hand: a multi-repo layout end to end, Codex actually dispatching the adapter
+(it must trust the project hooks first), Gemini as the bootstrapping agent. CI runs the
+tests on Linux and macOS (`.github/workflows/test.yml`). Windows has not been tried.
 
 Upgrading a project installed from v0.1: see `docs/CUSTOMIZING.md` § Updating the
 package itself.
@@ -95,6 +120,8 @@ package itself.
 
 ```
 START.md      the procedure the agent follows (tool-agnostic)
+bin/           the CLI: install, upgrade, doctor
+examples/     a generated example installation (examples/minimal)
 proje/        your project goes here; the output is generated inside it
 core/         the fixed layer, copied into the project unchanged
   docs/  scripts/  .claude/  .codex/  .githooks/  setup-hooks.*

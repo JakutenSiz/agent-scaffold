@@ -258,6 +258,58 @@ PreToolUse hooks Claude Code runs and turns every "ask" into a "deny" (Codex has
 It only works once the machine has trusted the project hooks, and has to be re-trusted
 after a hook changes — until then the written rule is the only protection.
 
+## Secret shield, done gate, equivalent merge, handoff packet
+
+**Secret shield.** A PreToolUse hook that matches the target of every file tool and every
+shell word against `secrets.protectedPaths`. It exists because an agent that "just looks
+at" `.env` puts the secret into a transcript that is stored elsewhere. It is
+accident-level on purpose: a name-based heuristic cannot be a sandbox, and pretending it
+is one would be worse than saying so. Known leaks, all deliberate: interpreter bodies
+(`python -c`, `node -e`), paths assembled from variables (only a leading `$HOME` or `~`
+is expanded), names handed over indirectly (`xargs`), directory-level access
+(`grep -r`, `tar`, `rsync`, `find`), `printenv`/`env`, wildcards in a directory
+component (`cat */.env`), and Codex sessions (the adapter bridges only the shell tool). It has no
+escape prefix, because an escape the agent can type is not a shield; and it fails open
+on an internal error, because a broken guard that blocks all work gets deleted.
+
+**Done gate.** An agent can write "done" on the board without ever running the gate. The
+check is record based: `gate-record` runs `doneGate.command` for the current code state
+and stores `{codeId, command, exit}` under the git common dir; `done-gate --staged`
+verifies at commit time that a record with this code id and exit 0 exists when an item is
+flipped to done. The code id hashes the staged content minus the exempt paths, so a
+board-only commit does not invalidate it. Limits: the record proves a run happened on this
+content, not that the command was a good test; it lives in the local git dir, so another
+clone has to record again; and the commit escape (`PRE_COMMIT_SKIP_DONE_GATE=1`) is
+there for the human. Like every pre-commit step it is skipped by `git commit --no-verify`,
+and it lets the commit through when the script itself fails. In a multi-repository layout
+only the repository at the config root is hashed. The config file is not exempt, so
+changing `doneGate.command` asks for a new record.
+
+**Equivalent merge.** The default definition of "merged" is ancestry, which never
+deletes work by mistake but leaves every squash-merged branch on the list forever. With
+`git.hygiene.equivalentMerge: "cherry"` the cleaner also accepts a branch whose patch
+reached the target by cherry-pick or squash. Known limits: a squash that was reverted
+later still reads as merged (the tip stays recoverable from the journal); a target that
+changed a neighbouring line first hides the match (a safe false negative). Only the
+remote-tracking refs already in the clone are compared; the cleaner does not fetch.
+
+**Handoff packet.** A handoff written from memory forgets the unpushed commit and the
+dirty file. The packet reads the facts instead, within a byte budget, with token-like
+values masked. Limits: masking is pattern based (JWTs, 32+ character hex or base64
+runs), so a short or oddly shaped secret survives; the packet describes the state at the
+moment it was written and is stale after the next commit.
+
+## Not adopted (and when to reopen)
+
+- **A single `gates: {id: mode}` table** in the config. It would change how every hook
+  reads its config and force compatibility aliases for the existing keys. Reopen when a
+  third gate appears that needs a mode and does not have one.
+- **Putting the engine in one directory and linking to it** instead of copying it into
+  the project. It breaks about 58 relative imports and the principle that `core/` is
+  copied, not linked. Reopen if accumulated `.new` files become a user complaint.
+- **Putting the done gate on pre-push** instead of commit. Reopen if the commit gate is
+  being bypassed with `--no-verify`.
+
 ## What was deliberately left out
 
 Product policies, server names, ports, credentials, branch names and named people. They

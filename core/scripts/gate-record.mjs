@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// Enforces: R-48
 /**
  * gate-record - runs config.doneGate.command for the CURRENT code state and records the result,
  * so scripts/done-gate.mjs can verify it when an item is closed.

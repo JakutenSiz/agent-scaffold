@@ -35,7 +35,8 @@ description: "Verification run after a code change — 'run the gates', 'run the
 4. Record PASS/FAIL per gate with file:line for failures. Do not fix inside the verifier lane; report.
 5. **Red-proof (bug fixes):** a regression test counts as evidence only after it was seen RED on the pre-fix code. Write the test first and run it on the unfixed code; if the order slipped, do NOT revert the fix in the shared checkout: open the pre-fix commit in a temporary `git worktree add --detach <scratch>/pre HEAD~N`, copy the NEW test file there, run it, then `git worktree remove --force <scratch>/pre`. Report one line: `red proof: <command> -> N fail (before fix) / 0 fail (after fix)`.
 6. **Baseline for a suspicious red:** prove it is also red without your change, in a temporary worktree (`git worktree add --detach <scratch>/base HEAD`, install dependencies there for real, do not link another tree's dependency folder), run the failing test, remove the worktree. Never `git stash` in a shared checkout: it takes other sessions' uncommitted work too. An unproven "pre-existing" claim is not accepted.
-7. Before a deploy, add the build row and the secret scan (the pre-push hook runs it; running it earlier saves a round trip).
+7. **Record the result (when `doneGate.command` is set):** after the code is staged or committed and the gate is green, run `node scripts/gate-record.mjs`. It runs `doneGate.command` once for exactly this code state and writes the record that the commit gate (`done-gate --staged`) looks for when a board item is flipped to done. It refuses while the working tree differs from the index; if the code changes afterwards, record again.
+8. Before a deploy, add the build row and the secret scan (the pre-push hook runs it; running it earlier saves a round trip).
 
 ## Run rules and pitfalls (dated; keep adding)
 
@@ -56,5 +57,6 @@ description: "Verification run after a code change — 'run the gates', 'run the
 - Every row of the table for every changed repo ran once, serially, and the result is recorded.
 - For a bug fix, the `red proof:` line is present. Counts are at or above baseline, or the difference is explained.
 - Skipped gates are named with the reason (missing live service), not omitted.
+- If the project uses the done gate, `node scripts/gate-record.mjs` ran green on the final code state before the item was closed.
 
 Not done: "tests probably pass", a run interrupted by a timeout, a green obtained with a skip flag, a bug fix without a red proof, only the changed file's own test run while "typecheck/lint green" is claimed.

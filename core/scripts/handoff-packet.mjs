@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// Enforces: R-28
 /**
  * handoff-packet -- a handoff note built from observed facts, with a byte budget and secrets masked.
  *
