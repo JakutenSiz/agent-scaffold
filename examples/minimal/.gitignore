@@ -10,6 +10,10 @@
 # links created by .claude/hooks/ensure-agent-compat.mjs (Codex/Gemini share the Claude sources)
 .agents/skills
 .codex/hooks
+# secrets (the secret-shield hook protects these paths from agents)
+.env
+.env.*
+!.env.example
 # personal overrides
 .claude/settings.local.json
 # <<< agent-scaffold <<<

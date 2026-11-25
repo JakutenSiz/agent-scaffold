@@ -10,9 +10,11 @@
 .claude/hooks/git-shield.mjs
 .claude/hooks/lib/command-class.mjs
 .claude/hooks/lib/deploy-lock.mjs
+.claude/hooks/lib/shell-words.mjs
 .claude/hooks/map-guardian.mjs
 .claude/hooks/push-guard.mjs
 .claude/hooks/read-guard.mjs
+.claude/hooks/secret-shield.mjs
 .claude/hooks/session-context.mjs
 .claude/hooks/test-runner-guard.mjs
 .claude/settings.json
@@ -55,9 +57,12 @@ scripts/board-lint.mjs
 scripts/board-staleness.mjs
 scripts/coordination-archive.mjs
 scripts/delegation-share.mjs
+scripts/done-gate.mjs
+scripts/gate-record.mjs
 scripts/git-hygiene-clean.mjs
 scripts/git-hygiene-ignore.json
 scripts/git-hygiene-watch.mjs
+scripts/handoff-packet.mjs
 scripts/human-queue.mjs
 scripts/lib/board-format.mjs
 scripts/lib/config.mjs

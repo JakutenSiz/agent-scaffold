@@ -23,7 +23,7 @@
       "class": "engine"
     },
     ".claude/hooks/context-watch.mjs": {
-      "sha256": "ce4e0895ad2c97124e99a440f13b8a78777ed8f1a777be9be0d7fef5fedcfea9",
+      "sha256": "9b73566fbd8cdf5e4b769c884bad4d743d0c322cd5c613986770908550811863",
       "class": "engine"
     },
     ".claude/hooks/edit-check.mjs": {
@@ -46,6 +46,10 @@
       "sha256": "d72c5ad4f53fe139aea172a6b0ae3d19cb15b4e17a328b5e0a2b3e627c4596d7",
       "class": "engine"
     },
+    ".claude/hooks/lib/shell-words.mjs": {
+      "sha256": "4062e2a5322119b5c2ad788c27a84f0172fd841cea20ccb9929a1b1000e851ca",
+      "class": "engine"
+    },
     ".claude/hooks/map-guardian.mjs": {
       "sha256": "a42a074e3d631e5728d1feeadcc2043b5fd8b7bbc1dac60a0f1cc405dbdc62a1",
       "class": "engine"
@@ -58,6 +62,10 @@
       "sha256": "84dbd3268df39962e1467360f558994f17c10290eb31a800fdae7220e17ffe89",
       "class": "engine"
     },
+    ".claude/hooks/secret-shield.mjs": {
+      "sha256": "a17b324efb437f65e551084e9760263bb91d735dfbdc6e693459a79f0b567cfa",
+      "class": "engine"
+    },
     ".claude/hooks/session-context.mjs": {
       "sha256": "4d54d12cf1e6cc5ea9bd326ecf709fa98e6d9385242109cc846ac1ca4cbeb79c",
       "class": "engine"
@@ -67,7 +75,7 @@
       "class": "engine"
     },
     ".claude/settings.json": {
-      "sha256": "6b10adc2e7a8aaf431a953d1a958de11d0864028d9bdecdf90dfa593517d7872",
+      "sha256": "cc0114f5daf58cbd9427533b6d0ddf4f2b4d4bf146cd6756ad6cec6a7ef827fc",
       "class": "merge"
     },
     ".claude/skills/gate-ritual/SKILL.md": {
@@ -107,7 +115,7 @@
       "class": "engine"
     },
     ".gitignore": {
-      "sha256": "7009c305071ddef18d901ead8110d57380bfe8d318f903f4658466886e3bab26",
+      "sha256": "68de39d9f9dc364ba0f276719f03f9fa5a8526b3ba7b9751e84384c77cd6c91d",
       "class": "merge"
     },
     "AGENTS.md": {
@@ -211,7 +219,7 @@
       "class": "engine"
     },
     "scripts/board-lint.mjs": {
-      "sha256": "9507a18eba25d9dc83617d5c04f6c4df05a644545ac6d9cadfcb7cf70769df7f",
+      "sha256": "f1fbf09c324c07b9f06ada8a7515f7c2ee5b99e14b8db1685ceffc991027165a",
       "class": "engine"
     },
     "scripts/board-staleness.mjs": {
@@ -219,15 +227,23 @@
       "class": "engine"
     },
     "scripts/coordination-archive.mjs": {
-      "sha256": "ab328eb679dae4bdebc69deff635d1e0a448581e7d2a005f56328564ae7d2925",
+      "sha256": "48ac27a7c286340c62d7c8aac258255cee7ec5a53166421e0e9a757099a6830e",
       "class": "engine"
     },
     "scripts/delegation-share.mjs": {
       "sha256": "79422d15676d6e4075589136e520a82d8cc01ab4447a68f2ad6ab3f928dd7913",
       "class": "engine"
     },
+    "scripts/done-gate.mjs": {
+      "sha256": "b1a02b5a2952105b00db2da18bfae4b1f43cd0c57af4081b44702bf185cc4963",
+      "class": "engine"
+    },
+    "scripts/gate-record.mjs": {
+      "sha256": "5df197ee1bae9220bc37a4366954a46da5a167d050a4027198f0512bbac58a4f",
+      "class": "engine"
+    },
     "scripts/git-hygiene-clean.mjs": {
-      "sha256": "4ee30a4e72a7b23baab1e6f91bfc430fc54a024876f5a5c489b9ce8521ec5007",
+      "sha256": "8074634658c8b987d9e60a5a7ff2bc50be3f915faa93b4afcd982359eef4ad70",
       "class": "engine"
     },
     "scripts/git-hygiene-ignore.json": {
@@ -236,6 +252,10 @@
     },
     "scripts/git-hygiene-watch.mjs": {
       "sha256": "87e02552686df224b4a6086a27d2b62ed7cc756c50571875f4d1a0bf5c7614da",
+      "class": "engine"
+    },
+    "scripts/handoff-packet.mjs": {
+      "sha256": "431409c4687f75add2eab6b8a33f91df25af69faa71ed750fa9dde56c6548fbb",
       "class": "engine"
     },
     "scripts/human-queue.mjs": {
@@ -247,7 +267,7 @@
       "class": "engine"
     },
     "scripts/lib/config.mjs": {
-      "sha256": "de3181b19000792f32270a4370609d16c29c1244236b225c0b1bba6f0feb2b6a",
+      "sha256": "0831542575de1953608393a1a002f08a802ce1dec045affec620103ca10e128a",
       "class": "engine"
     },
     "scripts/lib/coordination-table.mjs": {
@@ -255,7 +275,7 @@
       "class": "engine"
     },
     "scripts/lib/git-hygiene-common.mjs": {
-      "sha256": "ba40328d7be320e6d54c499d95bc16318f17d58e64d1a97b45aa21d187d2c18b",
+      "sha256": "0f183a1e22ed42474b69ac616373a2532deaecacbfde3ae855d3438f91fefcb1",
       "class": "engine"
     },
     "scripts/lib/main-module.mjs": {
@@ -287,7 +307,7 @@
       "class": "engine"
     },
     "scripts/pre-commit-check.mjs": {
-      "sha256": "12ce8978cbb9a6b6ac3ca20eac8d83f3047339a9d6af0b06a05978dcc67aeebb",
+      "sha256": "4d944c42c1cff6c92cb9c5ba78695ff5e03a0be059a3bf2b6454a9eb3febb223",
       "class": "engine"
     },
     "scripts/pre-push-check.mjs": {
