@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { scrubGitEnv } from './worktree-check.mjs';
+import { boardFormat, parseItems } from './board-format.mjs';
 
 export function git(cwd, args, timeout = 5000) {
   return execFileSync('git', args, { cwd, encoding: 'utf8', timeout, windowsHide: true, env: scrubGitEnv(), stdio: ['ignore', 'pipe', 'ignore'] });
@@ -190,47 +191,42 @@ export function loadIgnore(root, config, overridePath = null) {
   }
 }
 
-// --- markdown references (lazy; only read when a worktree is a deletion candidate) ---
-function collectMarkdown(target, deep, out) {
-  let st;
+// --- live-signal references (lazy; only read when a worktree is a deletion candidate) ---
+// Only places that describe work in progress can hold a worktree: the whole coordination file and
+// the OPEN items of the board. Specs, reports, the memory bank and the archives are never scanned:
+// the memory of a closed job in a durable document would otherwise protect its worktree forever.
+function readLines(file) {
   try {
-    st = fs.statSync(target);
+    return fs.readFileSync(file, 'utf8').split('\n');
   } catch {
-    return;
-  }
-  if (st.isFile()) {
-    if (target.endsWith('.md')) out.push(target);
-    return;
-  }
-  let entries = [];
-  try {
-    entries = fs.readdirSync(target, { withFileTypes: true });
-  } catch {
-    return;
-  }
-  for (const e of entries) {
-    const p = path.join(target, e.name);
-    if (e.isDirectory()) {
-      if (deep && e.name !== 'node_modules' && e.name !== '.git') collectMarkdown(p, deep, out);
-    } else if (e.name.endsWith('.md')) out.push(p);
+    return null;
   }
 }
 
-export function markdownFiles(root, config, repos) {
-  const files = [];
-  const rel = (p) => (p ? path.resolve(root, p) : null);
-  for (const p of [config?.board?.file, config?.board?.archive, config?.coordination?.file, config?.coordination?.archive]) if (p) collectMarkdown(rel(p), false, files);
-  for (const p of [config?.docs?.reports, config?.docs?.specs]) if (p) collectMarkdown(rel(p), true, files);
-  const mb = config?.memoryBank?.dir;
-  if (mb) {
-    const bases = new Set([path.resolve(root), ...repos.map((r) => path.resolve(r.path))]);
-    for (const b of bases) collectMarkdown(path.join(b, mb), true, files);
+/** Lines of the board that belong to open items (closed items and everything outside items are blanked; line numbers are kept). */
+function openBoardLines(lines, config) {
+  const fmt = boardFormat(config);
+  const out = lines.map(() => '');
+  for (const it of parseItems(lines.join('\n'), fmt)) {
+    if (it.status === fmt.status.done) continue;
+    for (let i = it.start; i < it.end; i++) out[i] = lines[i];
   }
-  return [...new Set(files)].map((f) => ({ file: f, lines: fs.readFileSync(f, 'utf8').split('\n') }));
+  return out;
 }
 
-/** First "file:line" in the markdown set that mentions the worktree path, else null. */
-export function findMarkdownReference(wtPath, root, docs) {
+export function liveSignalFiles(root, config) {
+  const docs = [];
+  const coordination = config?.coordination?.file ? path.resolve(root, config.coordination.file) : null;
+  const board = config?.board?.file ? path.resolve(root, config.board.file) : null;
+  const coordLines = coordination && readLines(coordination);
+  if (coordLines) docs.push({ file: coordination, lines: coordLines });
+  const boardLines = board && readLines(board);
+  if (boardLines) docs.push({ file: board, lines: openBoardLines(boardLines, config) });
+  return docs;
+}
+
+/** First "file:line" in the live-signal set that mentions the worktree path, else null. */
+export function findLiveReference(wtPath, root, docs) {
   const needles = new Set([wtPath.replaceAll('\\', '/')]);
   const rel = path.relative(root, wtPath).replaceAll('\\', '/');
   if (rel && !rel.startsWith('..') && !path.isAbsolute(rel)) needles.add(rel);
@@ -258,8 +254,8 @@ export function findMarkdownReference(wtPath, root, docs) {
  * A branch is a candidate <=> merged + not checked out (except in worktrees that are themselves
  * about to be removed) + not ignored + not protected + last commit older than branchMinAgeHours.
  * A worktree is a candidate <=> clean + HEAD merged + git-dir mtime older than worktreeMinAgeHours
- * + not locked + cwd not inside + no markdown reference. When unsure, KEEP.
- * @returns {{candidates:{branches:object[], worktrees:object[]}, kept:object[], skipped:string|null, targets:string[]}}
+ * + not locked + cwd not inside + no live reference (coordination file, open board items). When unsure, KEEP.
+ * @returns {{candidates:{branches:object[], worktrees:object[]}, kept:object[], skipped:string|null, targets:string[], liveReferenced:string[]}}
  */
 export function evaluateRepo(repo, ctx) {
   const { root, config, now, ignore, cwds, docsLoader } = ctx;
@@ -268,12 +264,13 @@ export function evaluateRepo(repo, ctx) {
   const kept = [];
   const keep = (kind, name, reason) => kept.push({ repo: repo.name, kind, name, reason });
   const { defaultBranch: def, refs } = mergeTargets(repo);
-  if (!refs.length) return { candidates, kept, skipped: 'no origin/<default> or origin/<deploy> ref', targets: [] };
+  if (!refs.length) return { candidates, kept, skipped: 'no origin/<default> or origin/<deploy> ref', targets: [], liveReferenced: [] };
   const protectedNames = new Set([def, ...repo.deployBranches, ...(config?.git?.protectedBranches ?? [])].filter(Boolean));
   const ignored = (branch) => ignore.entries.some((y) => (y.repo === repo.name || y.repo === undefined) && y.branch === branch);
 
   const wts = listWorktrees(repo.path);
   const removing = new Set();
+  const liveReferenced = [];
   for (const w of wts.slice(1)) {
     if (!fs.existsSync(w.path) || w.prunable) {
       keep('worktree', w.path, 'directory missing (git worktree prune)');
@@ -301,9 +298,10 @@ export function evaluateRepo(repo, ctx) {
       keep('worktree', w.path, mt === null ? 'mtime unknown' : `fresh (touched ${Math.round((now - mt) / 60)} min ago)`);
       continue;
     }
-    const ref = findMarkdownReference(w.path, root, docsLoader());
+    const ref = findLiveReference(w.path, root, docsLoader());
     if (ref) {
       keep('worktree', w.path, `referenced in ${ref}`);
+      liveReferenced.push(w.path);
       continue;
     }
     removing.add(w.path);
@@ -334,7 +332,7 @@ export function evaluateRepo(repo, ctx) {
       keep('branch', name, `fresh (last commit under ${s.branchMinAgeHours} h)`);
     } else candidates.branches.push({ repo: repo.name, branch: name, sha });
   }
-  return { candidates, kept, skipped: null, targets: refs };
+  return { candidates, kept, skipped: null, targets: refs, liveReferenced };
 }
 
 /** Number of stashes older than `days` (report only; stashes are never touched). */

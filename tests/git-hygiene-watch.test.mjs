@@ -22,7 +22,7 @@ test('scan counts merged branches, clean worktrees and dirty worktrees', () => {
     assert.deepEqual(e.cleanWorktrees, [fx.worktrees.clean]);
     assert.deepEqual(e.dirtyWorktrees.map((w) => w.path), [fx.worktrees.dirty]);
     assert.equal(res.debt, 2 + 1 + 1);
-    assert.match(formatLine(res.repos), /app 2 merged branches, 1 clean merged worktrees, 1 dirty worktrees/);
+    assert.match(formatLine(res.repos), /app 2 merged branches, 2 clean merged worktrees \(1 held by live references\), 1 dirty worktrees/);
   } finally { fx.cleanup(); }
 });
 
@@ -33,6 +33,7 @@ test('--line prints one line and deletes nothing when autoClean is off', () => {
     const out = run(fx, ['--line']);
     assert.equal(out.trim().split('\n').length, 1);
     assert.match(out, /^git hygiene: app 2 merged branches/);
+    assert.match(out, /2 clean merged worktrees \(1 held by live references\)/);
     assert.match(out, /git-hygiene-clean\.mjs --write/);
     assert.deepEqual([branchNames(fx.root), worktreePaths(fx.root)], before);
   } finally { fx.cleanup(); }

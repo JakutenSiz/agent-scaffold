@@ -14,8 +14,9 @@
 //   commit older than git.hygiene.branchMinAgeHours.
 // A WORKTREE is removed <=> all of: clean (files under .claude/ do not count) - HEAD merged as
 //   above - its private git dir (HEAD/index/logs) untouched for git.hygiene.worktreeMinAgeHours -
-//   not locked - the current directory is not inside it - no markdown file of the project (board,
-//   coordination, reports, specs, memory bank) mentions its path.
+//   not locked - the current directory is not inside it - no live signal mentions its path: the
+//   coordination file (all of it) or an OPEN board item (closed items, specs, reports, the memory
+//   bank and the archives are not scanned).
 // When unsure the script KEEPS: a wrong keep is cheap, a wrong delete is not.
 // Remote branches are never deleted; stashes are never touched; nothing is fetched.
 //
@@ -38,7 +39,7 @@ import { execFileSync } from 'node:child_process';
 import { loadConfig } from './lib/config.mjs';
 import { isMainModule } from './lib/main-module.mjs';
 import { scrubGitEnv } from './lib/worktree-check.mjs';
-import { git, discoverRepos, loadIgnore, evaluateRepo, markdownFiles, dirtyCount } from './lib/git-hygiene-common.mjs';
+import { git, discoverRepos, loadIgnore, evaluateRepo, liveSignalFiles, dirtyCount } from './lib/git-hygiene-common.mjs';
 
 export const LOG_FILE = path.join('.claude', '.git-hygiene-clean.jsonl');
 
@@ -68,7 +69,7 @@ export function runClean(opts) {
 
   const repos = discoverRepos(root, config, { only });
   let docs = null;
-  const docsLoader = () => (docs ||= markdownFiles(root, config, repos));
+  const docsLoader = () => (docs ||= liveSignalFiles(root, config));
   const result = { mode: writing ? 'write' : 'dry-run', candidates: { branches: [], worktrees: [] }, kept: [], skipped: [], removed: { branches: [], worktrees: [] }, errors };
 
   for (const repo of repos) {

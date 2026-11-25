@@ -7,7 +7,7 @@ import { execFileSync } from 'node:child_process';
 import { runClean } from '../core/scripts/git-hygiene-clean.mjs';
 import { discoverRepos } from '../core/scripts/lib/git-hygiene-common.mjs';
 import { scrubGitEnv } from '../core/scripts/lib/worktree-check.mjs';
-import { makeFixture, branchNames, worktreePaths, git } from './_git-hygiene-fixture.mjs';
+import { makeFixture, branchNames, worktreePaths, git, addCleanWorktree, writeFile } from './_git-hygiene-fixture.mjs';
 
 const CLI = path.resolve('core/scripts/git-hygiene-clean.mjs');
 const opts = (fx, extra = {}) => ({ root: fx.root, config: fx.config, cwds: [fx.root], ...extra });
@@ -44,7 +44,7 @@ test('keeps dirty, referenced, fresh and unmerged worktrees with a reason', () =
     const r = runClean(opts(fx));
     const why = (p) => r.kept.find((k) => k.kind === 'worktree' && k.name === p)?.reason ?? '';
     assert.match(why(fx.worktrees.dirty), /dirty/);
-    assert.match(why(fx.worktrees.ref), /referenced in reports[\\/]notes\.md:1/);
+    assert.match(why(fx.worktrees.ref), /referenced in coordination\.md:1/);
     assert.match(why(fx.worktrees.fresh), /fresh/);
     assert.match(why(fx.worktrees.unmerged), /unmerged/);
   } finally { fx.cleanup(); }
@@ -182,4 +182,38 @@ test('--write via the CLI removes the candidates', () => {
 test('--help documents the recovery command', () => {
   const out = execFileSync('node', [CLI, '--help'], { encoding: 'utf8', env: scrubGitEnv() });
   assert.match(out, /git branch <name> <sha>/);
+});
+
+test('only live signals hold a worktree: closed board item, spec, report and memory bank do not', () => {
+  const fx = makeFixture();
+  try {
+    const closed = addCleanWorktree(fx, 'wt-closed-item');
+    const spec = addCleanWorktree(fx, 'wt-in-spec');
+    const report = addCleanWorktree(fx, 'wt-in-report');
+    const bank = addCleanWorktree(fx, 'wt-in-bank');
+    const archived = addCleanWorktree(fx, 'wt-in-archive');
+    writeFile(fx.root, 'task-board.md', `# Board\n\n### T-1 \u2705 Old job\n**Remaining:** none, lived in ${closed}\n`);
+    writeFile(fx.root, 'task-board-archive.md', `# Archive\n\nlived in ${archived}\n`);
+    writeFile(fx.root, 'specs/a.md', `see ${spec}\n`);
+    writeFile(fx.root, 'reports/r.md', `see ${report}\n`);
+    writeFile(fx.root, 'memory-bank/activeContext.md', `see ${bank}\n`);
+    const r = runClean(opts(fx));
+    const paths = r.candidates.worktrees.map((w) => w.path);
+    for (const p of [closed, spec, report, bank, archived]) assert.ok(paths.includes(p), `${p} should be a candidate`);
+    assert.ok(!paths.includes(fx.worktrees.ref), 'coordination reference still holds');
+  } finally { fx.cleanup(); }
+});
+
+test('an OPEN board item holds a worktree; a name prefix does not match', () => {
+  const fx = makeFixture();
+  try {
+    const open = addCleanWorktree(fx, 'wt-open-item');
+    const prefix = addCleanWorktree(fx, 'wt-open');
+    writeFile(fx.root, 'task-board.md', `# Board\n\n### T-2 \u{1F534} Live job\n**Remaining:** finish in ${open}\n`);
+    const r = runClean(opts(fx));
+    const paths = r.candidates.worktrees.map((w) => w.path);
+    assert.ok(!paths.includes(open));
+    assert.match(r.kept.find((k) => k.name === open).reason, /referenced in task-board\.md:4/);
+    assert.ok(paths.includes(prefix), 'wt-open must not be held by wt-open-item');
+  } finally { fx.cleanup(); }
 });

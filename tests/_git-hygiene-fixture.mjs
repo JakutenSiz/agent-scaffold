@@ -40,7 +40,7 @@ export function writeConfig(root, extra = {}) {
  * Scenario repo:
  *  branches: merged-old (candidate), deployed (merged only through origin/deploy, candidate),
  *            unmerged-old, fresh-merged, ignored-merged, co-branch (checked out in a dirty worktree)
- *  worktrees: wt-clean (candidate), wt-dirty (on co-branch), wt-ref (md reference), wt-fresh, wt-unmerged
+ *  worktrees: wt-clean (candidate), wt-dirty (on co-branch), wt-ref (live reference in coordination.md), wt-fresh, wt-unmerged
  */
 export function makeFixture(configExtra = {}) {
   const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'git-hygiene-')));
@@ -79,8 +79,8 @@ export function makeFixture(configExtra = {}) {
   const unmerged = wt('wt-unmerged', 'unmerged-old', ['--detach']);
   for (const d of [clean, dirty, ref, unmerged]) ageWorktree(d);
 
-  fs.mkdirSync(path.join(root, 'reports'));
-  fs.writeFileSync(path.join(root, 'reports', 'notes.md'), `Experiment lives in ${ref} until Friday.\n`);
+  // wt-ref is held by a LIVE signal: the coordination file
+  fs.writeFileSync(path.join(root, 'coordination.md'), `Experiment lives in ${ref} until Friday.\n`);
   const config = writeConfig(root, configExtra);
   fs.mkdirSync(path.join(root, 'scripts'));
   fs.writeFileSync(path.join(root, 'scripts', 'git-hygiene-ignore.json'), JSON.stringify([{ repo: 'app', branch: 'ignored-merged', reason: 'kept on purpose', date: '2026-01-01' }]));
@@ -93,4 +93,18 @@ export function branchNames(root) {
 
 export function worktreePaths(root) {
   return git(root, ['worktree', 'list', '--porcelain']).split('\n').filter((l) => l.startsWith('worktree ')).map((l) => l.slice(9)).sort();
+}
+
+/** Extra clean, merged, aged worktree (a deletion candidate unless a live signal mentions it). */
+export function addCleanWorktree(fx, name) {
+  const dir = path.join(fx.tmp, name);
+  git(fx.root, ['worktree', 'add', '--detach', dir, 'merged-old']);
+  ageWorktree(dir);
+  return dir;
+}
+
+export function writeFile(root, rel, text) {
+  const p = path.join(root, rel);
+  fs.mkdirSync(path.dirname(p), { recursive: true });
+  fs.writeFileSync(p, text);
 }

@@ -23,7 +23,7 @@ import fs from 'node:fs';
 import { loadConfig } from './lib/config.mjs';
 import { isMainModule } from './lib/main-module.mjs';
 import { runClean } from './git-hygiene-clean.mjs';
-import { discoverRepos, evaluateRepo, loadIgnore, markdownFiles, hygieneSettings, listWorktrees, dirtyCount, staleStashCount } from './lib/git-hygiene-common.mjs';
+import { discoverRepos, evaluateRepo, loadIgnore, liveSignalFiles, hygieneSettings, listWorktrees, dirtyCount, staleStashCount } from './lib/git-hygiene-common.mjs';
 
 /**
  * Scan all repos (read only).
@@ -34,17 +34,18 @@ export function scan({ root, config, now = Math.floor(Date.now() / 1000), only =
   const ignore = loadIgnore(root, config);
   const repos = discoverRepos(root, config, { only });
   let docs = null;
-  const docsLoader = () => (docs ||= markdownFiles(root, config, repos));
+  const docsLoader = () => (docs ||= liveSignalFiles(root, config));
   const out = [];
   const notes = {};
   for (const repo of repos) {
     const note = (t) => (notes[repo.name] ||= []).push(t);
-    const entry = { repo: repo.name, branches: [], cleanWorktrees: [], staleStashes: staleStashCount(repo.path, now, s.staleStashDays), deadWorktrees: [], dirtyWorktrees: [] };
+    const entry = { repo: repo.name, branches: [], cleanWorktrees: [], liveReferenced: [], staleStashes: staleStashCount(repo.path, now, s.staleStashDays), deadWorktrees: [], dirtyWorktrees: [] };
     try {
       const ev = evaluateRepo(repo, { root, config, now, ignore, cwds, docsLoader });
       if (ev.skipped) note(`branch checks skipped: ${ev.skipped}`);
       entry.branches = ev.candidates.branches.map((b) => b.branch);
       entry.cleanWorktrees = ev.candidates.worktrees.map((w) => w.path);
+      entry.liveReferenced = ev.liveReferenced;
     } catch (e) {
       note(`unreadable: ${String(e?.message || '').split('\n')[0]}`);
     }
@@ -70,7 +71,8 @@ export function formatLine(repos) {
   for (const e of repos) {
     const p = [];
     if (e.branches.length) p.push(`${e.branches.length} merged branches`);
-    if (e.cleanWorktrees.length) p.push(`${e.cleanWorktrees.length} clean merged worktrees`);
+    const held = e.liveReferenced?.length ?? 0;
+    if (e.cleanWorktrees.length + held) p.push(`${e.cleanWorktrees.length + held} clean merged worktrees${held ? ` (${held} held by live references)` : ''}`);
     if (e.staleStashes) p.push(`${e.staleStashes} stale stashes`);
     if (e.deadWorktrees.length) p.push(`${e.deadWorktrees.length} dead worktrees`);
     if (e.dirtyWorktrees.length) p.push(`${e.dirtyWorktrees.length} dirty worktrees`);
@@ -123,6 +125,7 @@ function main() {
       console.log(`\n${e.repo}`);
       for (const b of e.branches) console.log(`  merged-branch          ${b}`);
       for (const w of e.cleanWorktrees) console.log(`  clean-merged-worktree  ${w}`);
+      for (const w of e.liveReferenced) console.log(`  held-worktree          ${w} (live reference)`);
       if (e.staleStashes) console.log(`  stale-stash            ${e.staleStashes} stash(es) older than ${hygieneSettings(config).staleStashDays} days (never touched by the cleaner)`);
       for (const w of e.deadWorktrees) console.log(`  dead-worktree          ${w}`);
       for (const w of e.dirtyWorktrees) console.log(`  dirty-worktree         ${w.path} (${w.files} files)`);
