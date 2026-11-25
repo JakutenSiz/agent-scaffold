@@ -125,3 +125,46 @@ skill'ler) her projeye kurulabilir hale getirir. Projeni `proje/` klasörüne ko
 yapının tamamını içeren hazır projendir; dil için `language: "tr"` seçersen üretilen
 belgeler Türkçe olur. Temel fikir: "iş bitince şunu yap" türü tavsiyeler tutmaz; tutması
 gereken kural oturum başı, commit ya da push anında koşan bir betiğe bağlanır.
+
+## Gates
+
+What each gate does under the three profiles, generated from the code (`node core/scripts/gate-table.mjs --write`; a test keeps it in sync).
+
+<!-- gates:begin -->
+| Gate | Where | minimal | standard | strict | Escape |
+| --- | --- | --- | --- | --- | --- |
+| `git-shield` destructive git commands (reset --hard, checkout --, restore, clean -f, stash, --autostash) | PreToolUse Bash\|PowerShell | block | block | block | prefix the command with AGENT_DESTRUCTIVE_OK=1 |
+| `git-shield-forbidden` project-defined forbidden commands (git.shield.forbiddenCommands) | PreToolUse Bash\|PowerShell | off | off | off | edit git.shield.forbiddenCommands |
+| `git-shield-worktree-debt` `git worktree add` while removable branches + worktrees pile up | PreToolUse Bash\|PowerShell | ask (> 20 removable) | ask (> 5 removable) | ask (> 2 removable) | clean up (scripts/git-hygiene-clean.mjs --yaz) |
+| `read-guard-reads` main session keeps reading instead of delegating (counted reads, shell reads included) | PreToolUse Read\|Grep\|Glob\|Agent\|Workflow\|Task\|Bash\|PowerShell | off | block (> 10 reads) | block (> 6 reads) | delegate to a subagent (renews the allowance) or send a new prompt |
+| `read-guard-recursion` a subagent spawning its own subagent | PreToolUse Read\|Grep\|Glob\|Agent\|Workflow\|Task\|Bash\|PowerShell | block | block | block | none (report back to the main agent) |
+| `read-guard-reads-reminder` soft reminder after N reads in the main session | PostToolUse Read\|Grep\|Glob\|Bash\|PowerShell | warn (at 8 reads) | warn (at 5 reads) | warn (at 3 reads) | none |
+| `read-guard-edits` main session keeps editing files instead of handing work to a worker | PreToolUse Edit\|Write | off | off | block (> 25 edits) | delegate to a worker (renews the allowance) or send a new prompt |
+| `read-guard-edits-reminder` one-time reminder after N edits in the main session | PreToolUse Edit\|Write | warn (at 30 edits) | warn (at 15 edits) | warn (at 10 edits) | none |
+| `read-guard-reset` resets the read/edit counters at every user prompt (bookkeeping, not a gate) | UserPromptSubmit | measure | measure | measure | none |
+| `context-watch` context too large or session idle: tells the agent to hand off | UserPromptSubmit | warn (> 600000 tokens) | warn (> 300000 tokens) | warn (> 200000 tokens) | CONTEXT_WATCH=off |
+| `session-context` SessionStart note: coordination file, status lines, auto-pull | SessionStart | measure | measure | measure | none |
+| `ensure-agent-compat` links Codex and Claude hook sources; sets core.hooksPath when it is empty | SessionStart | measure | measure | measure | session.ensureHooksPath: true |
+| `map-guardian-map` injects the relevant repo-map slice on the first edit in a repo | PreToolUse Edit\|Write | measure | measure | measure | none |
+| `map-guardian-reuse` new code that re-implements a piece registered in reuse-registry.json | PreToolUse Edit\|Write | off | block | block | update memory-bank/reuse-registry.json first |
+| `push-guard-delete` deleting a deploy or main branch on the remote | PreToolUse Bash | block | block | block | none |
+| `push-guard-behind` pushing while the checkout is behind the remote branch | PreToolUse Bash | block | block | block | pull first (a force push skips the check) |
+| `push-guard-map` pushed source files missing from the repo map | PreToolUse Bash | off | block | block | add the files to the map |
+| `push-guard-hookspath` deploy push from a clone without core.hooksPath (pre-push would never run) | PreToolUse Bash | off | block | block | run setup-hooks.sh |
+| `push-guard-deploy-lock` a second deploy push while another one is running | PreToolUse Bash | block | block | block | prefix the command with DEPLOY_LOCK=skip |
+| `push-guard-confirm` push to a deploy branch (automatic deploy) | PreToolUse Bash | off | ask | ask | answer yes |
+| `secret-shield` reading or overwriting secret files (.env, keys, credential files) by name | PreToolUse Read\|Edit\|Write\|MultiEdit\|NotebookEdit\|Grep\|Glob\|Bash\|PowerShell | block (accident-level) | block (accident-level) | block (accident-level) | none (a human edits secrets.* in the config) |
+| `test-runner-guard` test runs with too many workers or while orphaned runner processes pile up | PreToolUse Bash\|PowerShell | block (> 4 workers) | block (> 2 workers) | block (> 1 workers) | lower the worker count / clean up orphans |
+| `edit-check` post-edit syntax/type check from repos[].editCheck (wakes the agent on failure) | PostToolUse Edit\|Write | off | off | off | none |
+| `codex-guard-adapter` replays the Bash hooks for Codex; `ask` becomes `deny`; risky commands fail closed | Codex PreToolUse (Bash) | block | block | block | none (project hooks must be trusted in Codex) |
+| `board-lint` board edits that break the compact item template | git pre-commit | off | warn | block | BOARD_LINT=skip |
+| `coordination-check` coordination file with closed note sections still in it | git pre-commit | warn | block | block | COORDINATION_CHECK=skip |
+| `done-gate` closing a board item without a green gate record (opt-in: needs doneGate.command) | git pre-commit | off | block (opt-in: set doneGate.command) | block (opt-in: set doneGate.command) | PRE_COMMIT_SKIP_DONE_GATE=1 |
+| `pre-commit-project-checks` project checks from preCommit.checks (run when matching files are staged) | git pre-commit | off | off | off | PRE_COMMIT_SKIP_<ID>=1 |
+| `big-blob` new blobs over pushGate.maxBlobMB in any pushed branch | git pre-push | warn (> 10 MB) | warn (> 2 MB) | block (> 1 MB) | BIG_FILE_OK=1 |
+| `secret-scan` secret scan over the pushed commits (deploy branches only) | git pre-push | block | block | block | SKIP_PUSH_GATE=1 |
+| `push-syntax-check` repos[].checks.syntax on the pushed content (deploy branches only) | git pre-push | off | off | off | SKIP_PUSH_GATE=1 |
+| `push-typecheck` repos[].checks.typecheck on the pushed commit (deploy branches only) | git pre-push | off | off | off | SKIP_PUSH_GATE=1 |
+
+Labels: `block` denies or fails the command; `ask` needs a human yes; `warn` says it and lets it pass; `measure` records or injects context only; `off` is inactive under that profile. `(opt-in ...)` means the gate does nothing until the named setting is filled in. Generated from the registry in `core/scripts/lib/gates.mjs`; refresh with `node core/scripts/gate-table.mjs --write`.
+<!-- gates:end -->
