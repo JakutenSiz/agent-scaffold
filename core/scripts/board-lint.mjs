@@ -128,6 +128,17 @@ export function lintBoard(oldText, newText, fmt) {
   return findings;
 }
 
+/**
+ * Codes of items that were closed in this edit: open -> done, or added directly as done.
+ * Pure. done -> done, items that left the board (archived) and `live` items are not transitions.
+ */
+export function doneTransitions(oldText, newText, fmt) {
+  const before = new Map(parseItems(oldText, fmt).map((it) => [it.key, it]));
+  return parseItems(newText, fmt)
+    .filter((it) => !it.duplicate && it.status === fmt.status.done && before.get(it.key)?.status !== fmt.status.done)
+    .map((it) => it.code);
+}
+
 /** First part of Remaining: the field line, or the next filled line when it is empty; cut at ` · `. */
 export function firstRemainingPart(it, fmt) {
   const i = it.body.findIndex((l) => fmt.re.remaining.test(l));

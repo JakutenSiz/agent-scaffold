@@ -12,6 +12,8 @@
  *   - coordination: config.coordination.file staged -> node scripts/coordination-archive.mjs --check
  *     Both built-ins run only when the commit is made in the config-root repo itself, and are
  *     silently skipped when the script file does not exist (partial installs stay usable).
+ *   - done-gate:    board staged and config.doneGate.command set -> node scripts/done-gate.mjs --staged
+ *     (escape PRE_COMMIT_SKIP_DONE_GATE=1)
  *   - project checks: config.preCommit.checks = [{ id, command, whenStaged: [glob, ...] }].
  *     When any whenStaged glob matches a staged file, `command` runs with cwd = config root
  *     and `{files}` replaced by the matching staged files. A glob without "/" matches the
@@ -84,6 +86,11 @@ export function planChecks(root, config, staged) {
   if (has(config.board?.file) && script('scripts/board-lint.mjs')) {
     plan.push({ id: 'board', kind: 'script', argv: ['scripts/board-lint.mjs', '--staged'], files: [norm(config.board.file)],
       escapeEnv: config.board?.lint?.escapeEnv ?? 'BOARD_LINT', escapeValue: 'skip' });
+  }
+  // Completion gate: only the board edit can close an item, and only when a gate command is configured.
+  if (has(config.board?.file) && config.doneGate?.command && script('scripts/done-gate.mjs')) {
+    plan.push({ id: 'done-gate', kind: 'script', argv: ['scripts/done-gate.mjs', '--staged'], files: [norm(config.board.file)],
+      escapeEnv: envKeyFor('done-gate'), escapeValue: '1' });
   }
   if (has(config.coordination?.file) && script('scripts/coordination-archive.mjs')) {
     plan.push({ id: 'coordination', kind: 'script', argv: ['scripts/coordination-archive.mjs', '--check'], files: [norm(config.coordination.file)],

@@ -6,7 +6,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { boardFormat } from '../core/scripts/lib/board-format.mjs';
-import { lintBoard, resolveMode } from '../core/scripts/board-lint.mjs';
+import { lintBoard, resolveMode, doneTransitions } from '../core/scripts/board-lint.mjs';
 import { scrubGitEnv } from '../core/scripts/lib/worktree-check.mjs';
 
 const fmt = boardFormat({});
@@ -122,4 +122,24 @@ test('CLI --staged reads HEAD and the index of a temporary repository', () => {
     assert.equal(r.status, 1);
     assert.match(r.stdout, /L1/);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+// ---- doneTransitions (pure) ----
+const itemAs = (status, code = '0101-a') => [`### ${code} ${status} [DEV] Item`, '**Remaining:** x', '**Last evidence:** abc1234'].join('\n');
+
+test('doneTransitions: open item flipped to done', () => {
+  assert.deepEqual(doneTransitions(board(itemAs('🔴')), board(itemAs('✅')), fmt), ['0101-a']);
+});
+
+test('doneTransitions: a new item added directly as done', () => {
+  assert.deepEqual(doneTransitions(board(itemAs('🔴')), board(itemAs('🔴'), itemAs('✅', '0102-b')), fmt), ['0102-b']);
+});
+
+test('doneTransitions: done -> done is not a transition; live does not count', () => {
+  assert.deepEqual(doneTransitions(board(itemAs('✅')), board(itemAs('✅') + '\n**Note:** more'), fmt), []);
+  assert.deepEqual(doneTransitions(board(itemAs('🔴')), board(itemAs('🟢')), fmt), []);
+});
+
+test('doneTransitions: a done item moved out of the board (archived) is not a transition', () => {
+  assert.deepEqual(doneTransitions(board(itemAs('✅'), itemAs('🔴', '0102-b')), board(itemAs('🔴', '0102-b')), fmt), []);
 });

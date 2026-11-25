@@ -271,3 +271,38 @@ test('an explicit COORDINATION_CHECK value beats the configured mode; skip still
   assert.equal(r.code, 0);
   assert.equal(ranLog(b), '');
 });
+
+// ---------------------------------------------------------------- done-gate built-in
+
+const DONE_GATE_CFG = { board: { file: 'task-board.md' }, doneGate: { command: 'npm test', timeoutSec: 60, mode: 'block' } };
+
+test('planChecks: done-gate step is planned when the board is staged, the command is set and the script exists', () => {
+  const dir = project(DONE_GATE_CFG, { 'scripts/done-gate.mjs': fakeLint(0) });
+  const plan = planChecks(dir, DONE_GATE_CFG, ['task-board.md']);
+  const step = plan.find((p) => p.id === 'done-gate');
+  assert.ok(step);
+  assert.deepEqual(step.argv, ['scripts/done-gate.mjs', '--staged']);
+  assert.equal(step.escapeEnv, 'PRE_COMMIT_SKIP_DONE_GATE');
+  assert.equal(step.escapeValue, '1');
+});
+
+test('planChecks: no done-gate step with an empty command, without the script, or without the board staged', () => {
+  const dir = project(DONE_GATE_CFG, { 'scripts/done-gate.mjs': fakeLint(0) });
+  const none = { ...DONE_GATE_CFG, doneGate: { command: '' } };
+  assert.ok(!planChecks(dir, none, ['task-board.md']).some((p) => p.id === 'done-gate'));
+  assert.ok(!planChecks(dir, DONE_GATE_CFG, ['src/a.js']).some((p) => p.id === 'done-gate'));
+  assert.ok(!planChecks(tmp(), DONE_GATE_CFG, ['task-board.md']).some((p) => p.id === 'done-gate'));
+});
+
+test('done-gate step: red stops the commit; PRE_COMMIT_SKIP_DONE_GATE=1 skips it', () => {
+  const dir = project(DONE_GATE_CFG, { 'scripts/done-gate.mjs': fakeLint(1, 'no gate record'), 'task-board.md': '# board\n' });
+  stage(dir, 'task-board.md');
+  const r = runHook(dir);
+  assert.equal(r.code, 1);
+  assert.match(r.out, /\[done-gate\]/);
+  assert.match(r.out, /PRE_COMMIT_SKIP_DONE_GATE=1/);
+  assert.match(ranLog(dir), /done-gate\.mjs --staged/);
+  const s = runHook(dir, { PRE_COMMIT_SKIP_DONE_GATE: '1' });
+  assert.equal(s.code, 0);
+  assert.match(s.out, /skipped/);
+});
