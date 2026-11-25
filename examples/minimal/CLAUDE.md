@@ -1,0 +1,92 @@
+# minimal-example — Agent Guide
+
+This file is the first thing every AI agent (Claude Code, Codex, Gemini or other) reads
+in this project. It holds **project facts**. The working rules live in one canonical
+place each and are linked, not copied:
+
+- How agents work here (delegation, sessions, gates): `docs/agent-working-rules.md`
+- Memory-bank rules: `docs/memory-bank-guide.md`
+- Task board rules: `task-board.md` §9 · Coordination protocol: `coordination.md` `## Protocol`
+- Tool pitfalls: `docs/tool-traps.md`
+- Machine-readable parameters (repos, ceilings, deploy branches): `agent-scaffold.config.json`
+
+## Repository shape
+
+<!-- fill: one paragraph — single repo / umbrella of N repos / monorepo with workspaces; where work usually happens. -->
+
+| Path | Stack | Role |
+|---|---|---|
+<!-- fill: one row per repo/package from discovery. Role = what it owns and what it explicitly does NOT do. -->
+
+<!-- fill: the integration backbone in 2–3 sentences — shared DB? queue? HTTP between services? contracts dir? -->
+
+## Commands by repo
+
+All commands run from inside the repo's working dir, not from the umbrella root.
+
+<!-- fill: per repo, a fenced block: install, dev, build, lint, type-check, test (whole), single test. Add ⚠️ lines for measured traps (Node version, env needed, flags that must never be used on the whole tree). -->
+
+## Architecture: boundaries
+
+<!-- fill: who calls whom, who owns which side effects (provider APIs, auth tokens, DB writes, file storage), where a feature usually spans two repos. Keep to what an agent needs in order to know WHERE a change belongs. -->
+
+## Architecture: inside each repo
+
+<!-- fill: per repo, 3–6 lines: routing/entry convention, domain layout, where helpers live, the one file that registers things in a fixed order, the process model in production. Point to memory-bank/repoMap.md for the full map. -->
+
+## Data and migrations
+
+<!-- fill: DB engine, migration dir per repo, "additive only" rule if it applies, whether repositories tolerate older schema shapes, who may run migrations against prod (the gatekeeper tag). Remove the section if there is no data layer. -->
+
+## Memory banks (read before non-trivial work)
+
+Every repo has a `memory-bank/` with `projectbrief.md`, `productContext.md`,
+`systemPatterns.md`, `techContext.md`, `repoMap.md`, `capabilityRegistry.md`,
+`activeContext.md`, `progress.md`. `activeContext.md`/`progress.md` hold only the recent
+window; older entries live in `memory-bank/archive/`. Start with `repoMap.md`,
+`activeContext.md` and `capabilityRegistry.md`, then read only what the task needs — the
+reading index and the full rules are in `docs/memory-bank-guide.md`.
+
+Keeping the map honest: adding a source file means adding it to that repo's
+`repoMap.md`; the push gate rejects a push whose new files cannot be found in the map
+(`node scripts/repomap-check.mjs <repo>` audits). Before writing a shared piece check
+`memory-bank/reuse-registry.json`; the pre-edit hook rejects re-implementing a
+registered canonical piece.
+
+## Working conventions
+
+- Prose, comments and commit messages: en. Match the surrounding language of the file you edit.
+- The checkout is shared by several sessions and workers: no `git stash`, `git reset --hard`, `git checkout -- <path>`, `git restore <path>`, `git clean -f`, `--autostash`; commit by path. Rules: `docs/agent-working-rules.md` §5.
+<!-- fill: 3–8 bullets — branch model, commit granularity, submodule pointer bumps if any, schema-change policy, "same feature touches repos A and B: decide which side owns it before editing", never-touch dirs from the human's answers. -->
+
+## Decision authority
+
+Who can *do* a task is the board tag; who *decides* is this section. The procedure an
+agent follows when something needs approval is `docs/agent-working-rules.md` §7.
+
+<!-- fill: from question 4.
+ONE human: keep exactly one line —
+  "the project owner decides everything; the steps under 'Needs approval before it happens' below are never taken on an agent's own initiative."
+SEVERAL humans: one bullet per person with their tag and what they decide alone (product direction, pricing, brand, legal, …). -->
+
+**Needs the project owner's explicit approval before it happens** — whoever is in the
+session, and especially when the agent itself proposed it:
+
+1. Production infrastructure and security operations: <!-- fill: opening/closing services, server and firewall configuration, creating/rotating/copying secrets and keys, database users and grants, deleting production data outside a shipped feature's own migration — keep what applies, add the project's own. -->
+2. Architecture-changing decisions: <!-- fill: adding or replacing an external provider or model, a new process/port/service, breaking or changing an existing contract field, auth and token flows, fail-open versus fail-closed, destructive or non-additive migrations — keep what applies. -->
+
+**Not on the list:** <!-- fill: what the gatekeeper explicitly left free — typically additive changes (a new endpoint, a new optional field, a new module in a running process) and settings of new features. Changing what running users already depend on stays on the list. Leave "nothing stated yet" if the human did not say. -->
+
+## Multi-agent working style
+
+Delegation-first: the main agent is the architect; `scout` explores, `analyst` explains
+a flow or a root cause, `worker` applies specs, `verifier` runs gates; cross-model review
+through a Codex lane. Single-level agent tree. A worker runs only the narrow check in
+its spec; the full gates run once on the combined tree before the push. Sessions stay
+short: close one with the `handoff` skill at a stage boundary. Durable syntheses go to
+`reports/`, worker recipes to `specs/`, repeated procedures become
+skills. The full rules and the why: `docs/agent-working-rules.md`.
+
+## Rituals (skills)
+
+<!-- fill: bullet per installed skill: `/gate-ritual` — when to call it; `/orchestrator`; `/handoff`; `/new-skill`; plus any project skeletons you created (deploy, migration, …). -->

@@ -9,17 +9,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { scrubGitEnv } from '../core/scripts/lib/worktree-check.mjs';
+import { fill } from '../bin/lib/util.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CORE = path.join(ROOT, 'core');
-
-/** Replaces {{KEY}} placeholders; any placeholder left unfilled fails the test. */
-export function fill(text, map) {
-  const out = text.replace(/\{\{([A-Z0-9_]+)\}\}/g, (m, k) => (k in map ? map[k] : m));
-  const left = out.match(/\{\{[A-Z0-9_]+\}\}/g);
-  assert.equal(left, null, `unfilled placeholders: ${left}`);
-  return out;
-}
 
 function sh(dir, cmd, args, env = {}) {
   const r = spawnSync(cmd, args, { cwd: dir, encoding: 'utf8', env: { ...scrubGitEnv(), ...env }, timeout: 60000 });
@@ -28,55 +21,27 @@ function sh(dir, cmd, args, env = {}) {
 const git = (dir, ...a) => sh(dir, 'git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...a]);
 const node = (dir, ...a) => sh(dir, process.execPath, a);
 
-/** A fresh project: core/ copied, config from the example, templates filled, first commit made. */
+/** A fresh project: installed through the CLI from the example config (patched), then the first commit. */
 function install(configPatch = (c) => c) {
   const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'e2e-install-')));
-  fs.cpSync(CORE, dir, {
-    recursive: true,
-    filter: (src) => {
-      const rel = path.relative(CORE, src);
-      return rel !== 'templates' && !rel.startsWith(`templates${path.sep}`) && rel !== 'agent-scaffold.config.example.json';
-    },
-  });
   const example = JSON.parse(fs.readFileSync(path.join(CORE, 'agent-scaffold.config.example.json'), 'utf8'));
   const config = configPatch({
     ...example,
     repos: [{ ...example.repos[0], path: '.', deployBranches: ['main'] }],
     secretScan: { ...example.secretScan, failClosed: false },
   });
-  fs.writeFileSync(path.join(dir, 'agent-scaffold.config.json'), JSON.stringify(config, null, 2));
-
-  const map = {
-    PROJECT_NAME: config.projectName,
-    BOARD_FILE: config.board.file,
-    BOARD_ARCHIVE: config.board.archive,
-    BOARD_CEILING: String(config.board.ceiling),
-    COORDINATION_ARCHIVE: config.coordination.archive,
-    COORDINATION_CEILING: String(config.coordination.ceiling),
-    MEMORY_BANK_DIR: config.memoryBank.dir,
-    REPORTS_DIR: config.docs.reports,
-    HUMAN_GATEKEEPER: config.humanGatekeeper,
-    HUMAN_TAG: config.humans[0],
-    HUMAN_STEP_WEEKS: String(config.board.humanStepExpiryWeeks),
-    LABEL_HUMAN_ONLY: config.labels.humanOnly,
-    LABEL_ANYONE: config.labels.anyone,
-    MULTI_REPO_PULL_NOTE: 'Single repo: nothing else to pull.',
-  };
-  const tmpl = (name) => fs.readFileSync(path.join(CORE, 'templates', name), 'utf8');
-  fs.writeFileSync(path.join(dir, config.board.file), fill(tmpl('task-board.md.tmpl'), map));
-  fs.writeFileSync(path.join(dir, config.coordination.file), fill(tmpl('coordination.md.tmpl'), map));
-  fs.writeFileSync(path.join(dir, config.board.archive), '# Task board archive\n');
-  fs.writeFileSync(path.join(dir, config.coordination.archive), '# Coordination archive\n');
-  fs.cpSync(path.join(CORE, 'templates', 'memory-bank'), path.join(dir, config.memoryBank.dir), { recursive: true });
-
-  for (const f of fs.readdirSync(path.join(dir, '.githooks'))) fs.chmodSync(path.join(dir, '.githooks', f), 0o755);
+  const cfgFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'e2e-config-')), 'config.json');
+  fs.writeFileSync(cfgFile, JSON.stringify(config, null, 2));
   assert.equal(git(dir, 'init', '-q', '-b', 'main').code, 0);
-  git(dir, 'config', 'core.hooksPath', '.githooks');
+  const r = sh(dir, process.execPath, [path.join(ROOT, 'bin', 'agent-scaffold.mjs'), 'install', dir, '--config', cfgFile, '--no-check']);
+  assert.equal(r.code, 0, r.out);
+  fs.rmSync(path.dirname(cfgFile), { recursive: true, force: true });
   git(dir, 'add', '-A');
   const first = git(dir, 'commit', '-q', '-m', 'first commit');
   assert.equal(first.code, 0, first.out);
   return { dir, config, cleanup: () => fs.rmSync(dir, { recursive: true, force: true }) };
 }
+
 
 const write = (dir, rel, text) => fs.writeFileSync(path.join(dir, rel), text);
 const read = (dir, rel) => fs.readFileSync(path.join(dir, rel), 'utf8');

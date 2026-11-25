@@ -1,0 +1,27 @@
+# minimal-example — Gemini CLI notes
+
+The rules are canonical elsewhere; this file carries only the deltas Gemini needs because
+it runs **without the hooks** Claude Code and Codex get.
+
+Canonical: `CLAUDE.md` · `docs/agent-working-rules.md` · `docs/memory-bank-guide.md` ·
+`coordination.md` `## Protocol` · `task-board.md` §9.
+
+## Before you start (the SessionStart hook would do this for you)
+1. `git pull --ff-only` in the root.
+2. Read `coordination.md` (open claims and messages only) and claim your item with one row in the claims table.
+3. Read the `memory-bank/` of the repo you will work in (`repoMap.md`, `activeContext.md`, `capabilityRegistry.md`).
+4. The status lines: `node scripts/md-size-watch.mjs --line`, `node scripts/human-queue.mjs --line`, `node scripts/git-hygiene-watch.mjs --line`, `node scripts/coordination-archive.mjs --line` — act on a size warning by archiving, never by deleting.
+
+## While you work (the PreToolUse hooks would stop these for you)
+- Shared checkout: never `git stash`, `git reset --hard`, `git checkout -- <path>`, `git restore <path>`, `git clean -f` or `--autostash`. For a baseline run: `git worktree add --detach <dir> <sha>`.
+- Commit only your own paths: `git diff --cached --stat`, then `git commit -- <paths>`.
+
+## Before you push (the push-guard hook would do this for you)
+1. `node scripts/repomap-check.mjs <repo>` — new source files must be findable in `repoMap.md`.
+2. The git hooks are agent-independent and run for you once `setup-hooks.sh` was executed: pre-commit (board lint, coordination check), pre-push (secret scan + syntax gate on deploy branches, large-file check).
+3. Deploy branches: <!-- fill: list per repo, or "none". --> — pushing there is a deploy; confirm with the human first.
+
+## Boundaries
+- Do not touch files another agent has claimed. Use a separate worktree for parallel writes.
+- You cannot see live Claude↔Claude messages; everything that concerns you is in the coordination file.
+- Prose language: en.

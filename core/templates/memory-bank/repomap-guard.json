@@ -9,9 +9,9 @@
     "screens",
     "widgets"
   ],
-  "$comment_ignore": "ignore: extra regex strings (matched against the file's repo-relative path) for files that never need a repoMap.md mention. Appended to the built-in ignore list, which already covers tests/specs/stories, locale files, *.md, *.d.ts, migrations/, memory-bank/, node_modules/, public|assets|static/, and common non-source extensions (json/yaml/css/scss/svg/images/lockfiles). The agent tooling directories (.claude/, .codex/, .agents/, .githooks/) are ignored by the built-in list as well; the first entry below covers the scaffold's own script helpers.",
+  "$comment_ignore": "ignore: extra regex strings (matched against the file's repo-relative path) for files that never need a repoMap.md mention. Appended to the built-in ignore list, which already covers tests/specs/stories, locale files, *.md, *.d.ts, migrations/, memory-bank/, node_modules/, public|assets|static/, and common non-source extensions (json/yaml/css/scss/svg/images/lockfiles). The agent tooling directories (.claude/, .codex/, .agents/, .githooks/) are ignored by the built-in list as well; the first entry below covers every helper under scripts/lib/ (matched by pattern, so a new helper needs no list edit).",
   "ignore": [
-    "^scripts/lib/(config|main-module|worktree-check|board-format|coordination-table|git-hygiene-common)\\.mjs$",
+    "^scripts/lib/",
     "(^|/)generated/",
     "(^|/)__mocks__/"
   ]

@@ -1,9 +1,24 @@
 {
   "name": "agent-scaffold",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
-  "description": "Tests for the fixed layer in core/. Not copied into projects.",
+  "description": "Agent working scaffold: install, upgrade and doctor for the fixed layer in core/.",
+  "bin": {
+    "agent-scaffold": "bin/agent-scaffold.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "bin",
+    "core",
+    "examples",
+    "README.md",
+    "START.md"
+  ],
   "scripts": {
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "example": "node bin/make-example.mjs"
   }
 }

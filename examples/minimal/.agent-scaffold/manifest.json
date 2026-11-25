@@ -1,0 +1,326 @@
+{
+  "packageVersion": "0.3.0",
+  "schemaVersion": 1,
+  "files": {
+    ".claude/agents/analyst.md": {
+      "sha256": "b7c785f148212591db6b46cebc6cc58476949b811359019f470bb3d730c67061",
+      "class": "engine"
+    },
+    ".claude/agents/scout.md": {
+      "sha256": "aedbb86331a253a2a5591f46e9234261be66cf7cd16fb13717f6e0ec5baa92de",
+      "class": "engine"
+    },
+    ".claude/agents/verifier.md": {
+      "sha256": "780c1a052150f3def5dce02d72ff023a6247a8afe8b155962894d0b62cb5e3a1",
+      "class": "engine"
+    },
+    ".claude/agents/worker.md": {
+      "sha256": "4e0b57f23835c2b20ace06c532b08b0a3da176a6ac418162fe7d2fecc1fe4009",
+      "class": "engine"
+    },
+    ".claude/hooks/codex-guard-adapter.mjs": {
+      "sha256": "d617af00069016367195c762fff223bfcc9515f2a4f53cfa392247af4411b799",
+      "class": "engine"
+    },
+    ".claude/hooks/context-watch.mjs": {
+      "sha256": "ce4e0895ad2c97124e99a440f13b8a78777ed8f1a777be9be0d7fef5fedcfea9",
+      "class": "engine"
+    },
+    ".claude/hooks/edit-check.mjs": {
+      "sha256": "9e65ec3bccf443337bb99701d80b11a721d6c78e43ce465069de2ac78c5c38b3",
+      "class": "engine"
+    },
+    ".claude/hooks/ensure-agent-compat.mjs": {
+      "sha256": "3384ed20a07116b3b32da54335e923c36300efbba82e7a43b056b73cd5a77167",
+      "class": "engine"
+    },
+    ".claude/hooks/git-shield.mjs": {
+      "sha256": "fbe21e99f84e7a69dd484af701e05f04aa525c88ed46c03e6de81ae39a2035d4",
+      "class": "engine"
+    },
+    ".claude/hooks/lib/command-class.mjs": {
+      "sha256": "80c17dd4693718dc900b010fc24cc220e4871bfba837d1101ee6e2abb96d8158",
+      "class": "engine"
+    },
+    ".claude/hooks/lib/deploy-lock.mjs": {
+      "sha256": "d72c5ad4f53fe139aea172a6b0ae3d19cb15b4e17a328b5e0a2b3e627c4596d7",
+      "class": "engine"
+    },
+    ".claude/hooks/map-guardian.mjs": {
+      "sha256": "a42a074e3d631e5728d1feeadcc2043b5fd8b7bbc1dac60a0f1cc405dbdc62a1",
+      "class": "engine"
+    },
+    ".claude/hooks/push-guard.mjs": {
+      "sha256": "9b874e31b223a389bc3a1dc8ee263c4b35b39f46cee1adde5b54664aca196dad",
+      "class": "engine"
+    },
+    ".claude/hooks/read-guard.mjs": {
+      "sha256": "84dbd3268df39962e1467360f558994f17c10290eb31a800fdae7220e17ffe89",
+      "class": "engine"
+    },
+    ".claude/hooks/session-context.mjs": {
+      "sha256": "4d54d12cf1e6cc5ea9bd326ecf709fa98e6d9385242109cc846ac1ca4cbeb79c",
+      "class": "engine"
+    },
+    ".claude/hooks/test-runner-guard.mjs": {
+      "sha256": "cb59cf8ddbb428984dcdf38d8c2b06292fae9ba7dd7194da9dea9075d34fc3ac",
+      "class": "engine"
+    },
+    ".claude/settings.json": {
+      "sha256": "6b10adc2e7a8aaf431a953d1a958de11d0864028d9bdecdf90dfa593517d7872",
+      "class": "merge"
+    },
+    ".claude/skills/gate-ritual/SKILL.md": {
+      "sha256": "b016bafee2a8e4e7e7c7711ba3a52609d4ffd5ecbd449496a48e862570eb0bb5",
+      "class": "hybrid"
+    },
+    ".claude/skills/handoff/SKILL.md": {
+      "sha256": "afc92339fb3fa03ae278237733331a849f41b90a2db7a9dffd9efc6338354ef0",
+      "class": "hybrid"
+    },
+    ".claude/skills/new-skill/SKILL.md": {
+      "sha256": "6d71b3a2e0d8b8d3c466252b5783c1010584dfa49bfa9afb630d3eb3c9cc611e",
+      "class": "engine"
+    },
+    ".claude/skills/orchestrator/SKILL.md": {
+      "sha256": "cbc4607de3517af920b9a95139f20d4faf21b168dd415464e8790cdbb00febd8",
+      "class": "engine"
+    },
+    ".codex/config.toml": {
+      "sha256": "e7476921247c4f45fa7fb0aa7991d002bdf8fe160d4adf1d65c95315165d4918",
+      "class": "seed"
+    },
+    ".codex/hooks.json": {
+      "sha256": "aa7a6ef01830c7c38df237862c038e30e400287f3edb6b78a1de29b22256c76b",
+      "class": "merge"
+    },
+    ".gitattributes": {
+      "sha256": "b7027e32561a409bbb272e3a573eec87d8992c022284be752db78931f921200b",
+      "class": "merge"
+    },
+    ".githooks/pre-commit": {
+      "sha256": "963edfdc3406122e6431ed59106618fdb3d178682f8d815a9ef011d7a4cbb2b9",
+      "class": "engine"
+    },
+    ".githooks/pre-push": {
+      "sha256": "de5f6106ee3c3847906d277dd936dc0410906e00d3463b5afd480c57ecc6490f",
+      "class": "engine"
+    },
+    ".gitignore": {
+      "sha256": "7009c305071ddef18d901ead8110d57380bfe8d318f903f4658466886e3bab26",
+      "class": "merge"
+    },
+    "AGENTS.md": {
+      "sha256": "a6cd4ec4b6b3b3cbab7ed58fbe53bc8079f985e42c3d77001a731b1aa16eb684",
+      "class": "seed"
+    },
+    "CLAUDE.md": {
+      "sha256": "f89024f6631b26a04693a86033bc1883884985d4e31093b5c8df4f38e10c11cd",
+      "class": "seed"
+    },
+    "GEMINI.md": {
+      "sha256": "a6ccbe2f129434f75952fe48d9335fd2334bf1903cedd30cec7360a13ada5e73",
+      "class": "seed"
+    },
+    "agent-scaffold.config.json": {
+      "sha256": "9dc53d5f72bc8b317a9cd9962716d20d3b66dcfb1edcf47fcf0f2d09fe880443",
+      "class": "seed"
+    },
+    "coordination-archive.md": {
+      "sha256": "3b6e16864ff4cb99ce46eef4d6eb2230e0e62358fefcbf6d58747ac0ccb54df5",
+      "class": "seed"
+    },
+    "coordination.md": {
+      "sha256": "b1423b26936647635f0c67ee0ffa38af21220526702ed6f9ba3d1b3e24b60081",
+      "class": "seed"
+    },
+    "docs/agent-working-rules.md": {
+      "sha256": "9c4ad00da96045275465e7fc5eb8148470848dbfe136f2f3493a51d320808532",
+      "class": "hybrid"
+    },
+    "docs/memory-bank-guide-appendix.md": {
+      "sha256": "536472a2d19d47a679f62d1257df3ee9f44ebdfc881b9964dfd73448a6bcf58a",
+      "class": "engine"
+    },
+    "docs/memory-bank-guide.md": {
+      "sha256": "ec000509413083497ce57070041feb6263a21268505213597e3287b9f0b80951",
+      "class": "engine"
+    },
+    "docs/memory-bank-schema.json": {
+      "sha256": "11b9ca507a7fff37cae522989adb00e078ba26cafcde87ba06a8114a09ef87dc",
+      "class": "hybrid"
+    },
+    "docs/tool-traps.md": {
+      "sha256": "f0311dfb9fe4b2ecc52f27d7720b9428f6e32d17938fde986b740ecf1339d830",
+      "class": "hybrid"
+    },
+    "memory-bank/activeContext.md": {
+      "sha256": "026287b815d643eb5345a557b7a0a503c330ea634619c80316032a6ca0ec9e2f",
+      "class": "seed"
+    },
+    "memory-bank/archive/.gitkeep": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "class": "seed"
+    },
+    "memory-bank/capabilityRegistry.md": {
+      "sha256": "47a0dde041474ef8d982c87b3cf17975c258d91cdebda6ef37c332b1c6b51acb",
+      "class": "seed"
+    },
+    "memory-bank/productContext.md": {
+      "sha256": "bc8134586eef176c173c482ff10d009f129f707501dd15c50538ba2b0ecbd969",
+      "class": "seed"
+    },
+    "memory-bank/progress.md": {
+      "sha256": "98e4bc55fd88370137436ae23f7f82874ba7b721e23d4dbc02089e32a20d9182",
+      "class": "seed"
+    },
+    "memory-bank/projectbrief.md": {
+      "sha256": "b4b268492c42d35d6f4252f89d23db1cbcb086174d63d04320df335fc56c79d4",
+      "class": "seed"
+    },
+    "memory-bank/repoMap.md": {
+      "sha256": "165c3f9a02846292f040601ad07d23c6da6107f864a9660bd916d9ff72e9dff0",
+      "class": "seed"
+    },
+    "memory-bank/repomap-guard.json": {
+      "sha256": "b9cf544521f618512580cf55729dc26e643055c2def21991292c4f537917b4e6",
+      "class": "seed"
+    },
+    "memory-bank/reuse-registry.json": {
+      "sha256": "57f87a3797f2969965f592716c1bbb65d5fea7c464a9c06fb87c865af2fa4344",
+      "class": "seed"
+    },
+    "memory-bank/systemPatterns.md": {
+      "sha256": "e6adab5731605aba7c1d4dfb6f9c56cce5f981b8c6285512a0d55d808a01f6f3",
+      "class": "seed"
+    },
+    "memory-bank/techContext.md": {
+      "sha256": "58f2f264d77524a191b6a27096b55153e08cd3bad82dc2fa948beea2c099cce8",
+      "class": "seed"
+    },
+    "reports/README.md": {
+      "sha256": "4d72251b17388460169462263726e098e8eb2ade0fc1a4d7767391f7a200d5a9",
+      "class": "seed"
+    },
+    "scripts/board-archive.mjs": {
+      "sha256": "9a3794e4129e5e8e9f27be3e10cfc77de92d1ffd9b6b358f9f62190efc1d697e",
+      "class": "engine"
+    },
+    "scripts/board-duplicate.mjs": {
+      "sha256": "39b0e0054b33d7fd80f7a0045956c0b72ff572f6560302b49ca2466e0fab9698",
+      "class": "engine"
+    },
+    "scripts/board-lint.mjs": {
+      "sha256": "9507a18eba25d9dc83617d5c04f6c4df05a644545ac6d9cadfcb7cf70769df7f",
+      "class": "engine"
+    },
+    "scripts/board-staleness.mjs": {
+      "sha256": "76f8377a0ecbc926d7ce6324fafedcda83c567ae988311632fa93dd22a379ce1",
+      "class": "engine"
+    },
+    "scripts/coordination-archive.mjs": {
+      "sha256": "ab328eb679dae4bdebc69deff635d1e0a448581e7d2a005f56328564ae7d2925",
+      "class": "engine"
+    },
+    "scripts/delegation-share.mjs": {
+      "sha256": "79422d15676d6e4075589136e520a82d8cc01ab4447a68f2ad6ab3f928dd7913",
+      "class": "engine"
+    },
+    "scripts/git-hygiene-clean.mjs": {
+      "sha256": "4ee30a4e72a7b23baab1e6f91bfc430fc54a024876f5a5c489b9ce8521ec5007",
+      "class": "engine"
+    },
+    "scripts/git-hygiene-ignore.json": {
+      "sha256": "7ef050cb4729fd6f99ed43b600499215a11ab145173cb2131a89c7252d52e3ee",
+      "class": "seed"
+    },
+    "scripts/git-hygiene-watch.mjs": {
+      "sha256": "87e02552686df224b4a6086a27d2b62ed7cc756c50571875f4d1a0bf5c7614da",
+      "class": "engine"
+    },
+    "scripts/human-queue.mjs": {
+      "sha256": "5a42bbabe2656eb78bafe2f68158b26497c3fdb38d6df7b87127e888a9779eaf",
+      "class": "engine"
+    },
+    "scripts/lib/board-format.mjs": {
+      "sha256": "c1d4ecfbd662950e6bb8ab5a942f49f3eaf19a33f82d0d6247657e43ad8c2f17",
+      "class": "engine"
+    },
+    "scripts/lib/config.mjs": {
+      "sha256": "de3181b19000792f32270a4370609d16c29c1244236b225c0b1bba6f0feb2b6a",
+      "class": "engine"
+    },
+    "scripts/lib/coordination-table.mjs": {
+      "sha256": "4638cbce563f4b59173d83e65cb0c06891b55992d301eb08907b5ad8471b4ee3",
+      "class": "engine"
+    },
+    "scripts/lib/git-hygiene-common.mjs": {
+      "sha256": "ba40328d7be320e6d54c499d95bc16318f17d58e64d1a97b45aa21d187d2c18b",
+      "class": "engine"
+    },
+    "scripts/lib/main-module.mjs": {
+      "sha256": "a5037ea5b892c5efe9e6a54c3deab217a213416e88b0e6eacac962e01b7d027f",
+      "class": "engine"
+    },
+    "scripts/lib/worktree-check.mjs": {
+      "sha256": "7c2b496caabc0652c5043fcf6a2530064bc9cd4e095f690eaec00613c3079ee2",
+      "class": "engine"
+    },
+    "scripts/list-configured-repos.mjs": {
+      "sha256": "2950a867c67528a1c542d43ce42083403e6e02eef60fb318af8c21635a9e4c6c",
+      "class": "engine"
+    },
+    "scripts/md-size-watch.mjs": {
+      "sha256": "fd1565e7c78f4326b0ce6bdbe8caf145724fbb950522840d666c6223fda27d48",
+      "class": "engine"
+    },
+    "scripts/memory-bank-archive.mjs": {
+      "sha256": "5a04328c1369b45eba463101ac8118c434fe5e82d06210d624c39aba53032a9c",
+      "class": "engine"
+    },
+    "scripts/memory-bank-check.mjs": {
+      "sha256": "1902dae8b7ed3b58df16237c087268521b16530e5cdd90456f74c6d60a0fb3f4",
+      "class": "engine"
+    },
+    "scripts/orphan-process.mjs": {
+      "sha256": "56cf6ff3cec06b1c39ea7912745526ccbf298679c51c88723a54682bff0b6725",
+      "class": "engine"
+    },
+    "scripts/pre-commit-check.mjs": {
+      "sha256": "12ce8978cbb9a6b6ac3ca20eac8d83f3047339a9d6af0b06a05978dcc67aeebb",
+      "class": "engine"
+    },
+    "scripts/pre-push-check.mjs": {
+      "sha256": "72427fffe74e93461892f20edd8e259cd6d7949fba8150fcc66fe83d851b0692",
+      "class": "engine"
+    },
+    "scripts/repomap-check.mjs": {
+      "sha256": "4ea35447dc8610cb7bc81d2c106555fdf123458fae1fa26a8a3064a87f829b1e",
+      "class": "engine"
+    },
+    "scripts/rule-inventory.mjs": {
+      "sha256": "a52d7543f092706cc083f096199d03c8618fa242c673a4f2005bffc0fa203388",
+      "class": "engine"
+    },
+    "setup-hooks.bat": {
+      "sha256": "a99fe32a9dd3d935403c00d1336ec31973b023698889e7d599423847a31159fe",
+      "class": "engine"
+    },
+    "setup-hooks.sh": {
+      "sha256": "747ca88902f348483917574c253646c60859d668d868d9e11711b70df4628f56",
+      "class": "engine"
+    },
+    "specs/README.md": {
+      "sha256": "c353c349404496cc4540dcb6abbd957cd4d8d7fdbae789461b68222292361164",
+      "class": "seed"
+    },
+    "task-board-archive.md": {
+      "sha256": "c1439b2a06c597204711ac8707713d0e513efa7d6ee953bc9e0133a459ba66d7",
+      "class": "seed"
+    },
+    "task-board.md": {
+      "sha256": "708a92bbd2afbe5629e26a26cb9951c722270af39b73c603781796ddab69c948",
+      "class": "seed"
+    }
+  }
+}

@@ -1,0 +1,188 @@
+{
+  "$comment": "Machine-checked required headings per memory-bank file, derived from the ## headings of core/templates/memory-bank/*.md. Checked by scripts/memory-bank-check.mjs (rule R-21). Each 'match' is a case-insensitive regex tested against the text of every markdown heading (# to ######) in the file; at least one heading must match. If the project language is not English, bootstrap updates the 'match' patterns in this file to the translated heading texts (keep the English alternatives if the files stay bilingual).",
+  "version": 1,
+  "files": {
+    "projectbrief.md": {
+      "description": "Stable identity of the repository; source of truth for scope.",
+      "requiredHeadings": [
+        {
+          "topic": "what the repo is responsible for",
+          "match": "responsibility"
+        },
+        {
+          "topic": "what it is not responsible for",
+          "match": "out of scope|not responsible"
+        },
+        {
+          "topic": "domain / business purpose",
+          "match": "purpose"
+        },
+        {
+          "topic": "top-level goals",
+          "match": "goals"
+        },
+        {
+          "topic": "repository boundaries",
+          "match": "boundaries"
+        },
+        {
+          "topic": "critical external systems",
+          "match": "external systems"
+        }
+      ]
+    },
+    "productContext.md": {
+      "description": "Why the repo exists from a product/domain perspective.",
+      "requiredHeadings": [
+        {
+          "topic": "problems the repo solves",
+          "match": "problems"
+        },
+        {
+          "topic": "major flows / capabilities",
+          "match": "flows|capabilities"
+        },
+        {
+          "topic": "expected behavior and goals",
+          "match": "expected behavior|goals"
+        },
+        {
+          "topic": "domain language",
+          "match": "domain language|glossary"
+        },
+        {
+          "topic": "business rules that affect implementation",
+          "match": "business rules"
+        }
+      ]
+    },
+    "systemPatterns.md": {
+      "description": "Architectural playbook: how the repo is shaped.",
+      "requiredHeadings": [
+        {
+          "topic": "high-level architecture",
+          "match": "architecture"
+        },
+        {
+          "topic": "modules / layers",
+          "match": "modules|layers"
+        },
+        {
+          "topic": "data and control flow",
+          "match": "flow"
+        },
+        {
+          "topic": "design patterns in use",
+          "match": "design patterns"
+        },
+        {
+          "topic": "domain / layer boundaries",
+          "match": "boundaries"
+        },
+        {
+          "topic": "anti-patterns to avoid",
+          "match": "anti-?patterns"
+        },
+        {
+          "topic": "extension vs modification rules",
+          "match": "extension"
+        }
+      ]
+    },
+    "techContext.md": {
+      "description": "Engineering environment and constraints.",
+      "requiredHeadings": [
+        {
+          "topic": "languages, frameworks, runtimes",
+          "match": "languages|frameworks|runtimes"
+        },
+        {
+          "topic": "major dependencies",
+          "match": "dependencies"
+        },
+        {
+          "topic": "build / test / lint / dev commands",
+          "match": "commands"
+        },
+        {
+          "topic": "environment and runtime constraints",
+          "match": "environment|runtime constraints"
+        },
+        {
+          "topic": "deployment assumptions",
+          "match": "deployment"
+        },
+        {
+          "topic": "codegen / tooling",
+          "match": "codegen|tooling"
+        },
+        {
+          "topic": "integration and testing stack",
+          "match": "testing stack|integration"
+        }
+      ]
+    },
+    "repoMap.md": {
+      "description": "Mandatory fast-navigation file.",
+      "requiredHeadings": [
+        {
+          "topic": "top-level directory map",
+          "match": "directory map"
+        },
+        {
+          "topic": "'if you want to do X, start here' pointers",
+          "match": "start here"
+        },
+        {
+          "topic": "hotspots / entrypoints",
+          "match": "hotspots|entrypoints"
+        },
+        {
+          "topic": "ownership paths",
+          "match": "ownership"
+        },
+        {
+          "topic": "deceptively indirect behavior",
+          "match": "indirect"
+        }
+      ],
+      "structure": {
+        "table": {
+          "afterHeading": "start here",
+          "minRows": 2
+        }
+      }
+    },
+    "capabilityRegistry.md": {
+      "description": "Mandatory reuse map: stops agents from re-implementing existing pieces.",
+      "requiredHeadings": [
+        {
+          "topic": "at least one area section of existing helpers/clients/wrappers",
+          "match": "api clients|transport|db|query|logging|error|auth|session|state|form|ui|job|ai|test factories|fixtures"
+        }
+      ]
+    },
+    "activeContext.md": {
+      "description": "Current working state; sliding window. Entries are dated headings.",
+      "requiredHeadings": [],
+      "structure": {
+        "datedEntries": {
+          "level": 2,
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}\\b",
+          "min": 1
+        }
+      }
+    },
+    "progress.md": {
+      "description": "Delivery status; sliding window. Entries are dated headings.",
+      "requiredHeadings": [],
+      "structure": {
+        "datedEntries": {
+          "level": 2,
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}\\b",
+          "min": 1
+        }
+      }
+    }
+  }
+}

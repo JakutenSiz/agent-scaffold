@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "projectName": "minimal-example",
+  "language": "en",
+  "layout": "single",
+  "humanGatekeeper": "the project owner",
+  "humans": ["OWNER"],
+  "repos": [
+    {
+      "name": "app",
+      "path": ".",
+      "stack": "node",
+      "checks": {},
+      "editCheck": [],
+      "deployBranches": ["main"],
+      "sourceExtensions": ["mjs"]
+    }
+  ],
+  "secretScan": { "failClosed": false }
+}

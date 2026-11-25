@@ -1,0 +1,25 @@
+{
+  "$comment": "The single table that decides how every file under core/ is treated by install, upgrade and doctor. Paths are relative to core/; the first matching rule wins. engine: the package owns it (updated in place only while the project copy is unmodified). seed: written once, never overwritten. hybrid: carries project text, so an upgrade only ever writes <file>.new. merge: structured file merged additively. A new core file that matches no rule fails tests/cli-install.test.mjs.",
+  "rules": [
+    { "glob": "agent-scaffold.config.example.json", "class": "seed" },
+    { "glob": "templates/gitignore.snippet", "class": "merge" },
+    { "glob": "templates/**", "class": "seed" },
+    { "glob": ".claude/settings.json", "class": "merge" },
+    { "glob": ".codex/hooks.json", "class": "merge" },
+    { "glob": ".gitattributes", "class": "merge" },
+    { "glob": ".codex/config.toml", "class": "seed" },
+    { "glob": ".claude/skills/gate-ritual/**", "class": "hybrid" },
+    { "glob": ".claude/skills/handoff/**", "class": "hybrid" },
+    { "glob": ".claude/skills/**", "class": "engine" },
+    { "glob": ".claude/hooks/**", "class": "engine" },
+    { "glob": ".claude/agents/**", "class": "engine" },
+    { "glob": ".githooks/**", "class": "engine" },
+    { "glob": "scripts/git-hygiene-ignore.json", "class": "seed" },
+    { "glob": "scripts/**", "class": "engine" },
+    { "glob": "setup-hooks.*", "class": "engine" },
+    { "glob": "docs/agent-working-rules.md", "class": "hybrid" },
+    { "glob": "docs/tool-traps.md", "class": "hybrid" },
+    { "glob": "docs/memory-bank-schema.json", "class": "hybrid" },
+    { "glob": "docs/**", "class": "engine" }
+  ]
+}
