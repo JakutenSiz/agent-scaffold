@@ -20,7 +20,7 @@ The structure has two layers.
 
 | Layer | What it is | Where it comes from |
 |---|---|---|
-| **Fixed** | Rules and mechanisms that are the same for every project: delegation-first working style, memory-bank guide, task-board and coordination-file mechanics, sliding-window archive rule, subagent roles, edit/read/push guards, size sentinels, skill house style. | Copied from `core/` unchanged. |
+| **Fixed** | Rules and mechanisms that are the same for every project: delegation-first working style, memory-bank guide, task-board and coordination-file mechanics, sliding-window archive rule, subagent roles, edit/read/push/git guards, commit and push gates, session-start sentinels, skill house style. | Copied from `core/` unchanged. |
 | **Generated** | Everything that depends on *this* project: stack, commands, repo map, entry points, capability registry, deploy branches, first task-board items, project traps. | You derive it from `proje/` and write it into the templates. |
 
 The rationale for every mechanism is in `docs/DESIGN.md`. You do not need it to run
@@ -101,9 +101,14 @@ example), use it with the default as the first option; otherwise ask in plain te
 2. **Layout** confirmation if ambiguous (`single` / `multi`).
 3. **Deploy branches** per repo, if any were found or suspected. Pushing to these will
    trigger a confirmation gate and a secret scan.
-4. **Human gatekeeper**: the name or role of the person who alone may approve destructive
-   or architectural steps (DB migrations, deleting data, changing auth). Default: "the
-   project owner".
+4. **Who decides.** Who instructs agents in this project — one person or several? For
+   each, a short tag (used as `[TAG]` on the board). Which of them is the gatekeeper who
+   must approve **before** production-infrastructure, security and architecture-changing
+   steps happen (DB migrations, deleting data, changing auth, a new provider or service)?
+   If there are several people: what does each decide alone (product, pricing, brand,
+   legal…)? Default: one person, tag `OWNER`, role "the project owner", who decides
+   everything. The answer fills `humanGatekeeper`, `humans` and the "Decision authority"
+   section of `CLAUDE.md`.
 5. **Which agent tools** the team uses (Claude Code / Codex / Gemini / other). Default:
    install all wiring.
 6. **Anything that must never be touched** (prod credentials dir, generated code, vendor
@@ -126,12 +131,22 @@ fill every key from the inventory and the answers. Rules:
 - `repos[]`: one entry per repo/package with a real `path`, `stack`, `checks`, `editCheck`
   (glob → command, `{file}` and `{repo}` placeholders), `deployBranches` (empty array if
   nothing deploys), `sourceExtensions`.
+- `humanGatekeeper` and `humans[]` from question 4: one tag per person who instructs
+  agents (`["OWNER"]` for a single owner).
 - `pendingPhrases`: keep the English defaults and add the equivalents in the chosen
   language (these keep an entry from being archived).
 - If `language` is not `en`, also add `board.doneSignals` and `board.partialSignals` in
-  that language (the staleness sentinel's defaults are English words; without these it
-  never fires on a non-English board).
-- `session.skills`: the skills you will install in step 6.
+  that language (the staleness sentinel and the board lint default to English words;
+  without these they never fire on a non-English board), and put the translated field
+  names of the item template into `board.fields` — the board scripts find the fields
+  through that map.
+- `session.skills`: the skills you will install in step 7. `session.lines`: keep the
+  default list; add a line only for a sentinel the project already has.
+- Leave the modes at their defaults (`board.lint.mode: "warn"`, `pushGate.bigBlobMode:
+  "warn"`, `git.hygiene.autoClean: false`). They are raised later, on purpose, once the
+  warnings have proven to be real.
+- `git.protectedBranches`: long-lived branches other than the deploy branches that must
+  never be cleaned up (`develop`, `staging`, release branches).
 - Remove the `$comment` key.
 - Validate: `node -e "JSON.parse(require('fs').readFileSync('proje/agent-scaffold.config.json','utf8'))"`.
 
@@ -151,24 +166,40 @@ What lands where:
 ```
 proje/
   agent-scaffold.config.json        (step 4)
-  docs/agent-working-rules.md       fixed — delegation-first rules, agent tree, skills
-  docs/memory-bank-guide.md         fixed — the memory-bank rulebook
-  scripts/lib/config.mjs            fixed — shared config loader
-  scripts/md-size-watch.mjs         sentinel: warns when sliding-window files pass their ceiling
+  docs/agent-working-rules.md       fixed — the rulebook: delegation, sessions, shared checkout, gates, decision authority; rules carry ids [R-nn]
+  docs/memory-bank-guide.md         fixed — the short memory-bank rulebook (+ -appendix.md for first set-up, memory-bank-schema.json for the check)
+  docs/tool-traps.md                fixed — tool pitfalls; sessions append dated rows
+  scripts/lib/                      shared helpers: config loader, main-module check, board/coordination parsers, git helpers
+  scripts/md-size-watch.mjs         sentinel: lines, bytes and longest line of the sliding-window files
   scripts/memory-bank-archive.mjs   moves old dated entries to memory-bank/archive/ (never deletes)
+  scripts/memory-bank-check.mjs     memory-bank files exist, carry their required headings, no placeholder left
   scripts/repomap-check.mjs         push gate helper: new source files must be findable in repoMap.md
-  scripts/board-staleness.mjs       flags task-board items whose body says "done" but heading says "open"
-  scripts/pre-push-check.mjs        the logic behind .githooks/pre-push (secret scan + syntax gate)
+  scripts/board-staleness.mjs       flags items whose body says "done" but heading says "open"
+  scripts/board-lint.mjs            commit gate: heading and Remaining change with the body
+  scripts/board-archive.mjs         moves closed items to the board archive
+  scripts/board-duplicate.mjs       "is this already on the board?" before adding an item
+  scripts/human-queue.mjs           one queue per human from the items' Human step field
+  scripts/coordination-archive.mjs  moves closed claim rows to the archive; --check is the commit gate
+  scripts/git-hygiene-watch.mjs     reports merged branches, finished worktrees, old stashes
+  scripts/git-hygiene-clean.mjs     removes only what is provably lossless (dry-run by default)
+  scripts/orphan-process.mjs        lists hung test-runner processes
+  scripts/rule-inventory.mjs        which rule is enforced by code, which is advice
+  scripts/delegation-share.mjs      measures how much the main session still does itself (Claude Code transcripts)
+  scripts/pre-push-check.mjs        the logic behind .githooks/pre-push
+  scripts/pre-commit-check.mjs      the logic behind .githooks/pre-commit
   scripts/list-configured-repos.mjs helper used by setup-hooks.*
   .claude/settings.json             Claude Code hook wiring + safe read-only allowlist
-  .claude/hooks/*.mjs               session-context, read-guard, map-guardian, edit-check, push-guard, test-runner-guard, ensure-agent-compat
-  .claude/agents/{scout,worker,verifier}.md
-  .claude/skills/{gate-ritual,orchestrator,new-skill}/SKILL.md
+  .claude/hooks/*.mjs               session-context, context-watch, read-guard, git-shield, map-guardian, edit-check, push-guard, test-runner-guard, ensure-agent-compat, codex-guard-adapter (+ lib/)
+  .claude/agents/{scout,analyst,worker,verifier}.md
+  .claude/skills/{gate-ritual,orchestrator,handoff,new-skill}/SKILL.md
   .codex/config.toml, .codex/hooks.json
-  .githooks/pre-push                secret scan + syntax gate on deploy-branch pushes
-  .gitattributes                    LF for sh/mjs/git hooks (a CRLF checkout breaks the pre-push hook)
+  .githooks/pre-commit              board lint + coordination check + project checks, only for what is staged
+  .githooks/pre-push                secret scan + syntax gate on deploy-branch pushes, large-file check on every push
+  .gitattributes                    LF for sh/mjs/git hooks (a CRLF checkout breaks the hooks)
   setup-hooks.sh / setup-hooks.bat  one-time: core.hooksPath for every repo
 ```
+
+The `tests/` directory of this package tests `core/` itself and is **not** copied.
 
 Merge rules when a file already exists in `proje/`:
 
@@ -180,7 +211,7 @@ Merge rules when a file already exists in `proje/`:
 Then, if Node is available:
 
 ```
-cd proje && node --check scripts/*.mjs scripts/lib/*.mjs .claude/hooks/*.mjs
+cd proje && for f in scripts/*.mjs scripts/lib/*.mjs .claude/hooks/*.mjs .claude/hooks/lib/*.mjs; do node --check "$f" || echo "FAIL $f"; done
 ```
 
 ---
@@ -194,11 +225,11 @@ and add a board item.
 
 | Template | Write to | Notes |
 |---|---|---|
-| `CLAUDE.md.tmpl` | `proje/CLAUDE.md` | The rulebook every agent reads first. Repository shape table, commands per repo, architecture boundaries, working conventions, and a short "Multi-agent working style" section that **links** to `docs/agent-working-rules.md` (do not paste the rules — one canonical home). Keep under ~200 lines. If a `CLAUDE.md` exists, append a `## Agent working structure (scaffold)` section instead. |
+| `CLAUDE.md.tmpl` | `proje/CLAUDE.md` | The rulebook every agent reads first. Repository shape table, commands per repo, architecture boundaries, working conventions, the **Decision authority** lists from question 4, and a short "Multi-agent working style" section that **links** to `docs/agent-working-rules.md` (do not paste the rules — one canonical home). Keep under ~200 lines. If a `CLAUDE.md` exists, append a `## Agent working structure (scaffold)` section instead. |
 | `AGENTS.md.tmpl` | `proje/AGENTS.md` and, in `multi` layout, `<repo>/AGENTS.md` for each repo | About 50 lines of repo-specific facts, never rules; links to `CLAUDE.md` and the memory-bank guide. Real dated traps are worth more than the line budget. Codex reads `CLAUDE.md` as a fallback anyway (configured in `.codex/config.toml`). |
 | `GEMINI.md.tmpl` | `proje/GEMINI.md` | Thin delta file: what Gemini must do manually because it has no hooks (pull, run repomap-check before push, read coordination file). |
-| `task-board.md.tmpl` | `proje/<board.file>` | Legend, "Who may do what" tags, the compact item template (§9), staleness suppressions section, and the **first items**: every "Unknown as of" you wrote, "confirm scaffold defaults", "run the full gate once and record the baseline", "fill model ids in .codex/config.toml", "install the secret scanner". Use the item code scheme `<MMDD>-<slug>`. Create the empty archive file `<board.archive>` with a one-line header. |
-| `coordination.md.tmpl` | `proje/<coordination.file>` | Protocol section verbatim, empty "Active claims" index, "Open messages", "Handed-over work", "Closed". Create `<coordination.archive>` with a header. |
+| `task-board.md.tmpl` | `proje/<board.file>` | Legend, "Who may do what" tags, the compact item template (§9), staleness suppressions section, and the **first items**: every "Unknown as of" you wrote, "confirm scaffold defaults", "run the full gate once and record the baseline", "fill model ids in .codex/config.toml", "install the secret scanner". Use the item code scheme `<MMDD>-<slug>`. A first item whose remaining step is the human's carries a `Human step` line with that person's tag (`{{HUMAN_TAG}}` is the first entry of `humans`, `{{HUMAN_STEP_WEEKS}}` is `board.humanStepExpiryWeeks`). Create the empty archive file `<board.archive>` with a one-line header. |
+| `coordination.md.tmpl` | `proje/<coordination.file>` | Protocol section verbatim, an empty `## Active claims` table (`| Session | Item code | Since | State |`), `## Open messages`, `## Handed-over work`. Create `<coordination.archive>` with a header. |
 | `reports/README.md`, `specs/README.md` | `proje/<docs.reports>/README.md`, `proje/<docs.specs>/README.md` | Content unchanged (translated when `language` is not `en`); the paths must match the config. |
 | `memory-bank/*.md` (8 files) | `proje/<memoryBank.dir>/` (single) or `<repo>/<memoryBank.dir>/` per repo (multi) | **This is the most valuable output.** Fill from the inventory and from reading the code: `repoMap.md` must have a real "if you want to do X, start here" table with ≥ 10 rows; `capabilityRegistry.md` must list the shared helpers/components/services that actually exist; `techContext.md` must have the exact commands; `activeContext.md` gets one dated entry "scaffold installed"; `progress.md` gets the known state. Create `<memoryBank.dir>/archive/.gitkeep`. |
 | `memory-bank/reuse-registry.json`, `repomap-guard.json` | next to the memory bank | Registry: start with the 3–5 most-reused shared pieces you found (a date picker, an HTTP client wrapper, a logger, a DB pool, …) so the map-guardian can already stop duplicates. Guard: sensible `ignore` list for this repo (tests, fixtures, generated, vendor, locales, migrations). |
@@ -206,22 +237,30 @@ and add a board item.
 Language: if `language` is not `en`, write the **prose and the section headings** of
 every generated document in that language — this applies to all templates alike,
 including the memory-bank files and the two READMEs. Only these stay exactly as in the
-templates: the headings scripts parse today (`## Staleness suppressions` on the board,
-the dated `## YYYY-MM-DD` entry headings in `activeContext.md`/`progress.md`), the
-headings reserved for tooling (`## Protocol`, `## Active claims` in the coordination
-file), the status emoji, file names, config keys and commands.
+templates: the headings scripts parse (`## Staleness suppressions` on the board, the
+dated `## YYYY-MM-DD` entry headings in `activeContext.md`/`progress.md`; `## Protocol`,
+`## Active claims`, `## Open messages`, `## Handed-over work` and the claims-table header
+cells `Session | Item code | Since | State` in the coordination file), the markers
+scripts look for (`✅ DONE <date>`, `refreshed <date>`, `[expires: YYYY-MM-DD]`, the
+`[R-nn]` rule ids), the status emoji, file names, config keys and commands. Two things
+are translated **through the config** rather than left in English: the board item's
+field names (`board.fields`) and the memory-bank headings — when you translate the
+memory-bank section headings, update the matching `match` patterns in
+`docs/memory-bank-schema.json`, or `memory-bank-check` will report every file.
 
 ---
 
 ## 7. Skills
 
-`core/.claude/skills/` ships three skills. Fill their project sections; the text you
+`core/.claude/skills/` ships four skills. Fill their project sections; the text you
 fill in follows `language` like every other generated text, while the fixed English
 parts of the skill stay as they are:
 
 - `gate-ritual/SKILL.md`: the per-repo gate table (which commands, in which order, which
   env) — from `techContext.md`. Add a dated "Baseline" line once you have run the gates.
 - `orchestrator/SKILL.md`: usually unchanged.
+- `handoff/SKILL.md`: the session-closing ritual (board evidence → coordination →
+  commit → push → the user clears the session); usually unchanged.
 - `new-skill/SKILL.md`: unchanged; it is the recipe for writing further skills. The rule
   it enforces: a procedure done three times (twice if the first run hit a trap) becomes a
   skill, written by the agent, tested in a fresh session without naming it.
@@ -241,9 +280,15 @@ Run what can be run and record the results in the report.
 cd proje
 node scripts/md-size-watch.mjs                       # table, all under ceiling
 node scripts/board-staleness.mjs                     # no flags on a fresh board
+node scripts/human-queue.mjs                         # the humans' queues match the items you tagged for them
+node scripts/board-archive.mjs                       # dry run, nothing to move
+node scripts/coordination-archive.mjs                # dry run, nothing to move
+node scripts/memory-bank-check.mjs                   # every memory-bank file present, headings in place, no placeholder
 node scripts/repomap-check.mjs <each repo dir> --all # audits EVERY tracked source file (without --all a never-committed map gives an empty window); gaps mean repoMap.md is incomplete — fix the map, do not silence the check
 node scripts/memory-bank-archive.mjs --all           # dry run, nothing to move
-sh setup-hooks.sh   (or setup-hooks.bat)             # core.hooksPath set for every repo
+node scripts/git-hygiene-watch.mjs                   # informational: merged branches and worktrees that pre-date the scaffold
+node scripts/rule-inventory.mjs --strict             # exit 0: every rule id cited by code exists in the rulebook
+sh setup-hooks.sh   (or setup-hooks.bat)             # core.hooksPath set for every repo; .githooks/* executable
 grep -rn "{{" . --include=*.md | grep -v node_modules   # must be empty
 grep -rn "<!-- fill:" . --include=*.md                  # must be empty
 ```
@@ -274,6 +319,8 @@ Typical round-2 items (ask only those that actually came up):
 | Blank | Where the answer goes |
 |---|---|
 | Model ids for the Codex profiles (cheap / mid / strong) | `.codex/config.toml` |
+| Several humans: anything on the gatekeeper's approval list that question 4 left vague | `CLAUDE.md` § Decision authority |
+| Merged branches or finished worktrees found by `git-hygiene-watch`: clean them now (`git-hygiene-clean.mjs --write`), or keep some (ignore file)? | nothing, or `scripts/git-hygiene-ignore.json` |
 | Secret scanner not installed: install now, or turn `secretScan.failClosed` off? | `agent-scaffold.config.json`, or nothing if the human installs it |
 | A command discovery could not derive (lint, type-check, single test, build) | `agent-scaffold.config.json` `repos[].checks`, `techContext.md`, `gate-ritual` table |
 | A deploy script or host referenced but not in the repo (what does it do, who runs it?) | `CLAUDE.md` deploy section, `techContext.md`; never guess credentials |
@@ -304,8 +351,9 @@ One message, in the chosen language, with:
    non-interactive run).
 4. **How to work from here** — three sentences: start every session by reading the
    SessionStart note or `CLAUDE.md`; pick work from the task board and claim it in the
-   coordination file; delegate reading to the scout, mechanical edits to the worker,
-   gates to the verifier.
+   coordination file with one table row; delegate reading to the scout, flow analysis
+   to the analyst, mechanical edits to the worker, gates to the verifier; close a
+   session with the `handoff` skill.
 5. Where to work from now on: `proje/` is the finished project — give the one command to
    move it to its permanent place (or, for an existing repo, to copy the generated files
    into the real clone), and state plainly that every future session is opened **at that
@@ -316,8 +364,9 @@ One message, in the chosen language, with:
 
 - [ ] `proje/agent-scaffold.config.json` exists, validates, and every repo has a real path.
 - [ ] Every file in the step-5 tree exists (or its `.scaffold` twin is listed in the report).
-- [ ] `CLAUDE.md`, `AGENTS.md`, board, coordination file, reports/specs READMEs, and a
-      complete memory bank per repo exist with no placeholder left.
+- [ ] `CLAUDE.md` (with its Decision authority section), `AGENTS.md`, board,
+      coordination file, reports/specs READMEs, and a complete memory bank per repo exist
+      with no placeholder left (`node scripts/memory-bank-check.mjs` exits 0).
 - [ ] `repoMap.md` has ≥ 10 real entry-point rows; `capabilityRegistry.md` lists real pieces.
 - [ ] All step-8 commands ran, or the report says exactly which could not and why.
 - [ ] Round-2 questions were asked (interactive run) and every answer landed in a file; the
