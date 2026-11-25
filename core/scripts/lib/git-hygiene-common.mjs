@@ -3,8 +3,17 @@
 //
 // One definition of "merged": a branch tip (or worktree HEAD) is merged when it is an ancestor
 // (`git merge-base --is-ancestor`) of origin/<default branch> OR of origin/<b> for any of the
-// repo's configured deployBranches. `git cherry` is deliberately NOT used: it counts re-applied
-// (rebased / cherry-picked) commits as unique and would call squash-merged work "unmerged".
+// repo's configured deployBranches. That is the default and the only mode that needs no opt-in.
+// Opt-in (git.hygiene.equivalentMerge = "cherry"): a tip whose CONTENT is already in such a ref
+// as a patch also counts (isEquivalentMerged: cherry-picked series, squash merges).
+// `git cherry` is reliable in the "-" direction (a "-" line means an equivalent patch exists in
+// the upstream); its weakness is that bare `git cherry` cannot see a squash (N commits became one
+// patch, so every line stays "+"). The squash probe below works around that.
+// Known limits, all on the safe side except the first:
+//  - a squash that was reverted afterwards still reads as "merged" (the content is in history and
+//    the deleted tip stays recoverable from the journal sha);
+//  - when the target branch changed a neighbouring line before the merge, the patch ids differ and
+//    the branch is not recognised (a safe false negative).
 // Nothing here fetches: only refs already present under refs/remotes/origin are read.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -23,6 +32,7 @@ export function hygieneSettings(config) {
     worktreeMinAgeHours: Number(h.worktreeMinAgeHours ?? 6),
     staleStashDays: Number(h.staleStashDays ?? 14),
     autoClean: h.autoClean === true,
+    equivalentMerge: h.equivalentMerge === 'cherry' ? 'cherry' : 'off',
     ignoreFile: h.ignoreFile ?? 'scripts/git-hygiene-ignore.json',
   };
 }
@@ -107,6 +117,46 @@ export function isAncestor(dir, a, b) {
 
 export function isMerged(dir, sha, refs) {
   return refs.some((r) => isAncestor(dir, sha, r));
+}
+
+function gitOut(dir, args, env = {}) {
+  return execFileSync('git', args, { cwd: dir, encoding: 'utf8', timeout: 10000, windowsHide: true, env: { ...scrubGitEnv(), ...env }, stdio: ['ignore', 'pipe', 'ignore'] });
+}
+
+const PROBE_IDENT = { GIT_AUTHOR_NAME: 'probe', GIT_AUTHOR_EMAIL: 'probe@invalid', GIT_COMMITTER_NAME: 'probe', GIT_COMMITTER_EMAIL: 'probe@invalid' };
+
+/**
+ * Is the CONTENT of `sha` already in one of `refs` as a patch, without `sha` being an ancestor?
+ * Per ref: (a) `git cherry <ref> <sha>` prints at least one line and ALL are "-"  -> 'cherry';
+ * (b) else squash probe: a throwaway commit holding sha's tree on top of merge-base(ref, sha);
+ * `git cherry <ref> <probe>` printing exactly one "-" line -> 'squash'. The probe is an unreferenced
+ * object (git commit-tree writes no ref; gc drops it). Any error, timeout or missing merge-base
+ * answers false: when unsure the caller KEEPS.
+ * @returns {'cherry'|'squash'|false}
+ */
+export function isEquivalentMerged(dir, sha, refs) {
+  for (const ref of refs) {
+    try {
+      const cherry = gitOut(dir, ['cherry', ref, sha]).split('\n').filter((l) => l.trim());
+      if (cherry.length && cherry.every((l) => l.startsWith('-'))) return 'cherry';
+      const mb = gitOut(dir, ['merge-base', ref, sha]).trim();
+      if (!mb) continue;
+      const tree = gitOut(dir, ['rev-parse', '--verify', `${sha}^{tree}`]).trim();
+      if (tree === gitOut(dir, ['rev-parse', '--verify', `${mb}^{tree}`]).trim()) continue; // nothing to compare
+      const probe = gitOut(dir, ['commit-tree', tree, '-p', mb, '-m', 'x'], PROBE_IDENT).trim();
+      const sq = gitOut(dir, ['cherry', ref, probe]).split('\n').filter((l) => l.trim());
+      if (sq.length === 1 && sq[0].startsWith('-')) return 'squash';
+    } catch {
+      // error / timeout / no merge-base for this ref: not proven, try the next ref
+    }
+  }
+  return false;
+}
+
+/** How a tip counts as merged: 'ancestor', (when `equivalent`) 'cherry' / 'squash', else null. */
+export function mergeVia(dir, sha, refs, equivalent = false) {
+  if (isMerged(dir, sha, refs)) return 'ancestor';
+  return (equivalent && isEquivalentMerged(dir, sha, refs)) || null;
 }
 
 /** `git worktree list --porcelain`, main worktree INCLUDED: {path, head, branch, locked, prunable}. */
@@ -260,6 +310,7 @@ export function findLiveReference(wtPath, root, docs) {
 export function evaluateRepo(repo, ctx) {
   const { root, config, now, ignore, cwds, docsLoader } = ctx;
   const s = hygieneSettings(config);
+  const equiv = s.equivalentMerge === 'cherry';
   const candidates = { branches: [], worktrees: [] };
   const kept = [];
   const keep = (kind, name, reason) => kept.push({ repo: repo.name, kind, name, reason });
@@ -276,7 +327,8 @@ export function evaluateRepo(repo, ctx) {
       keep('worktree', w.path, 'directory missing (git worktree prune)');
       continue;
     }
-    if (!isMerged(repo.path, w.head, refs)) {
+    const wVia = mergeVia(repo.path, w.head, refs, equiv);
+    if (!wVia) {
       keep('worktree', w.path, 'unmerged (HEAD not in the default/deploy branches)');
       continue;
     }
@@ -305,7 +357,7 @@ export function evaluateRepo(repo, ctx) {
       continue;
     }
     removing.add(w.path);
-    candidates.worktrees.push({ repo: repo.name, path: w.path, sha: w.head, branch: w.branch });
+    candidates.worktrees.push({ repo: repo.name, path: w.path, sha: w.head, branch: w.branch, via: wVia });
   }
 
   const checkedOut = new Set();
@@ -322,7 +374,8 @@ export function evaluateRepo(repo, ctx) {
   for (const [ref, ts, sha] of rows) {
     const name = ref.slice('refs/heads/'.length);
     if (protectedNames.has(name)) continue; // silent: protected names are never noise
-    if (!isMerged(repo.path, sha, refs)) {
+    const via = mergeVia(repo.path, sha, refs, equiv);
+    if (!via) {
       keep('branch', name, 'unmerged (tip not in the default/deploy branches)');
     } else if (checkedOut.has(name)) {
       keep('branch', name, 'checked out in a worktree');
@@ -330,7 +383,7 @@ export function evaluateRepo(repo, ctx) {
       keep('branch', name, 'listed in the ignore file');
     } else if (now - Number(ts) <= s.branchMinAgeHours * 3600) {
       keep('branch', name, `fresh (last commit under ${s.branchMinAgeHours} h)`);
-    } else candidates.branches.push({ repo: repo.name, branch: name, sha });
+    } else candidates.branches.push({ repo: repo.name, branch: name, sha, via });
   }
   return { candidates, kept, skipped: null, targets: refs, liveReferenced };
 }

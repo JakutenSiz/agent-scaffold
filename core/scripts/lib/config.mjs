@@ -64,7 +64,7 @@ export const DEFAULTS = {
     protectedBranches: [],
     shield: { escapeEnv: 'AGENT_DESTRUCTIVE_OK', forbiddenCommands: [] },
     hygiene: { autoClean: false, branchMinAgeHours: 24, worktreeMinAgeHours: 6, staleStashDays: 14, worktreeDebtAsk: 5, ignoreFile: 'scripts/git-hygiene-ignore.json',
-      // off | squash | all - recognise branches merged by squash / cherry-pick (read by the hygiene scripts).
+      // off | cherry - cherry also recognises branches merged by squash / cherry-pick (read by the hygiene scripts).
       equivalentMerge: 'off' },
   },
   preCommit: { checks: [] },

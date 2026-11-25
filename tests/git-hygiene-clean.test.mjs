@@ -5,9 +5,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { runClean } from '../core/scripts/git-hygiene-clean.mjs';
-import { discoverRepos } from '../core/scripts/lib/git-hygiene-common.mjs';
+import { discoverRepos, isEquivalentMerged } from '../core/scripts/lib/git-hygiene-common.mjs';
 import { scrubGitEnv } from '../core/scripts/lib/worktree-check.mjs';
-import { makeFixture, branchNames, worktreePaths, git, addCleanWorktree, writeFile } from './_git-hygiene-fixture.mjs';
+import { makeFixture, branchNames, worktreePaths, git, addCleanWorktree, writeFile, addEquivalentScenarios } from './_git-hygiene-fixture.mjs';
 
 const CLI = path.resolve('core/scripts/git-hygiene-clean.mjs');
 const opts = (fx, extra = {}) => ({ root: fx.root, config: fx.config, cwds: [fx.root], ...extra });
@@ -215,5 +215,124 @@ test('an OPEN board item holds a worktree; a name prefix does not match', () => 
     assert.ok(!paths.includes(open));
     assert.match(r.kept.find((k) => k.name === open).reason, /referenced in task-board\.md:4/);
     assert.ok(paths.includes(prefix), 'wt-open must not be held by wt-open-item');
+  } finally { fx.cleanup(); }
+});
+
+// --- equivalent merges (squash / cherry-pick), opt-in via git.hygiene.equivalentMerge ---
+const withMode = (fx, mode) => ({ ...fx.config, git: { hygiene: { equivalentMerge: mode } } });
+const EQUIV = ['picked', 'sq-merged'];
+
+test('equivalentMerge cherry: a squash-merged branch is a candidate, with via=squash; off keeps it', () => {
+  const fx = makeFixture();
+  try {
+    addEquivalentScenarios(fx);
+    const off = runClean(opts(fx));
+    assert.ok(!off.candidates.branches.some((b) => b.branch === 'sq-merged'));
+    assert.match(off.kept.find((k) => k.name === 'sq-merged').reason, /unmerged/);
+    const on = runClean(opts(fx, { config: withMode(fx, 'cherry') }));
+    const sq = on.candidates.branches.find((b) => b.branch === 'sq-merged');
+    assert.ok(sq);
+    assert.equal(sq.via, 'squash');
+    assert.equal(on.candidates.branches.find((b) => b.branch === 'merged-old').via, 'ancestor');
+  } finally { fx.cleanup(); }
+});
+
+test('equivalentMerge cherry: a cherry-picked series is a candidate (via=cherry)', () => {
+  const fx = makeFixture();
+  try {
+    addEquivalentScenarios(fx);
+    assert.ok(!runClean(opts(fx)).candidates.branches.some((b) => b.branch === 'picked'));
+    const on = runClean(opts(fx, { config: withMode(fx, 'cherry') }));
+    assert.equal(on.candidates.branches.find((b) => b.branch === 'picked')?.via, 'cherry');
+  } finally { fx.cleanup(); }
+});
+
+test('equivalentMerge cherry: a never-merged branch and an orphan branch stay', () => {
+  const fx = makeFixture();
+  try {
+    addEquivalentScenarios(fx);
+    const on = runClean(opts(fx, { config: withMode(fx, 'cherry') }));
+    for (const name of ['never', 'orphan']) {
+      assert.ok(!on.candidates.branches.some((b) => b.branch === name), name);
+      assert.match(on.kept.find((k) => k.name === name).reason, /unmerged/);
+    }
+  } finally { fx.cleanup(); }
+});
+
+test('equivalentMerge cherry: a commit added after the squash keeps the branch', () => {
+  const fx = makeFixture();
+  try {
+    addEquivalentScenarios(fx);
+    const on = runClean(opts(fx, { config: withMode(fx, 'cherry') }));
+    assert.ok(!on.candidates.branches.some((b) => b.branch === 'sq-extra'));
+    assert.match(on.kept.find((k) => k.name === 'sq-extra').reason, /unmerged/);
+  } finally { fx.cleanup(); }
+});
+
+test('equivalentMerge cherry: a worktree at a squash-merged HEAD is a candidate; dirty and fresh gates stay', () => {
+  const fx = makeFixture();
+  try {
+    const w = addEquivalentScenarios(fx);
+    assert.ok(!runClean(opts(fx)).candidates.worktrees.some((x) => x.path === w.sq));
+    const on = runClean(opts(fx, { config: withMode(fx, 'cherry') }));
+    assert.equal(on.candidates.worktrees.find((x) => x.path === w.sq)?.via, 'squash');
+    assert.ok(!on.candidates.worktrees.some((x) => x.path === w.sqDirty || x.path === w.sqFresh));
+    assert.match(on.kept.find((k) => k.name === w.sqDirty).reason, /dirty/);
+    assert.match(on.kept.find((k) => k.name === w.sqFresh).reason, /fresh/);
+  } finally { fx.cleanup(); }
+});
+
+test('equivalentMerge cherry: write mode deletes equivalents and journals via + sha; no ref is written', () => {
+  const fx = makeFixture();
+  try {
+    const w = addEquivalentScenarios(fx);
+    const tip = git(fx.root, ['rev-parse', 'sq-merged']);
+    const refsBefore = git(fx.root, ['for-each-ref', '--format=%(refname)']).split('\n').sort();
+    const r = runClean(opts(fx, { write: true, config: withMode(fx, 'cherry') }));
+    assert.deepEqual(r.errors, []);
+    const names = branchNames(fx.root);
+    for (const b of EQUIV) assert.ok(!names.includes(b), b);
+    for (const b of ['never', 'orphan', 'sq-extra']) assert.ok(names.includes(b), b);
+    assert.equal(fs.existsSync(w.sq), false);
+    const lines = fs.readFileSync(path.join(fx.root, '.claude', '.git-hygiene-clean.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+    const entry = lines.find((l) => l.kind === 'branch' && l.name === 'sq-merged');
+    assert.equal(entry.via, 'squash');
+    assert.equal(entry.sha, tip);
+    assert.equal(lines.find((l) => l.kind === 'branch' && l.name === 'picked').via, 'cherry');
+    assert.equal(lines.find((l) => l.kind === 'worktree' && l.path === w.sq).via, 'squash');
+    assert.equal(lines.find((l) => l.kind === 'branch' && l.name === 'merged-old').via, 'ancestor');
+    // only the deleted refs differ: the temporary commit object of the squash probe left no ref
+    const refsAfter = git(fx.root, ['for-each-ref', '--format=%(refname)']).split('\n').sort();
+    const gone = new Set(['refs/heads/sq-merged', 'refs/heads/picked', 'refs/heads/merged-old', 'refs/heads/deployed']);
+    assert.deepEqual(refsAfter, refsBefore.filter((x) => !gone.has(x)));
+  } finally { fx.cleanup(); }
+});
+
+test('dry-run report prints via and the short sha', () => {
+  const fx = makeFixture();
+  try {
+    addEquivalentScenarios(fx);
+    const cfg = withMode(fx, 'cherry');
+    fs.writeFileSync(path.join(fx.root, 'agent-scaffold.config.json'), JSON.stringify({ version: 2, projectName: 'proj', repos: [{ name: 'app', path: '.', deployBranches: ['deploy'] }], git: cfg.git }));
+    const out = execFileSync('node', [CLI, '--root', fx.root], { encoding: 'utf8', env: scrubGitEnv() });
+    const tip = git(fx.root, ['rev-parse', '--short=7', 'sq-merged']);
+    assert.match(out, new RegExp(`DELETE  branch .*sq-merged  ${tip} \\(squash\\)`));
+    assert.match(out, /merged-old .*\(ancestor\)/);
+  } finally { fx.cleanup(); }
+});
+
+test('isEquivalentMerged: no merge-base, bad sha or no refs all answer false', () => {
+  const fx = makeFixture();
+  try {
+    addEquivalentScenarios(fx);
+    const ref = 'refs/remotes/origin/main';
+    const sha = (b) => git(fx.root, ['rev-parse', b]);
+    assert.equal(isEquivalentMerged(fx.root, sha('sq-merged'), [ref]), 'squash');
+    assert.equal(isEquivalentMerged(fx.root, sha('picked'), [ref]), 'cherry');
+    assert.equal(isEquivalentMerged(fx.root, sha('orphan'), [ref]), false);
+    assert.equal(isEquivalentMerged(fx.root, sha('never'), [ref]), false);
+    assert.equal(isEquivalentMerged(fx.root, sha('sq-merged'), []), false);
+    assert.equal(isEquivalentMerged(fx.root, '0'.repeat(40), [ref]), false);
+    assert.equal(isEquivalentMerged(fx.root, sha('sq-merged'), ['refs/remotes/origin/nope']), false);
   } finally { fx.cleanup(); }
 });

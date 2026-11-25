@@ -8,7 +8,9 @@
 // is now a script that runs at a deterministic moment. DEFAULT IS A DRY RUN.
 //
 // A local BRANCH is deleted <=> all of: its tip is an ancestor of origin/<default branch> or of
-//   origin/<b> for any deployBranches entry (merge-base --is-ancestor; no `git cherry`) - not
+//   origin/<b> for any deployBranches entry (merge-base --is-ancestor), or - only with
+//   git.hygiene.equivalentMerge = "cherry" - its content is there as a patch (cherry-pick / squash,
+//   see lib/git-hygiene-common.mjs for the method and its limits) - not
 //   checked out in any worktree (except worktrees removed in the same run) - not in the ignore
 //   file - not a protected name (default branch, deployBranches, git.protectedBranches) - last
 //   commit older than git.hygiene.branchMinAgeHours.
@@ -21,7 +23,7 @@
 // Remote branches are never deleted; stashes are never touched; nothing is fetched.
 //
 // RECOVERY: every deletion is appended to .claude/.git-hygiene-clean.jsonl as
-//   {ts, repo, kind, name, sha, path}. A deleted branch comes back with `git branch <name> <sha>`
+//   {ts, repo, kind, name, sha, path, via} (via: ancestor | cherry | squash). A deleted branch comes back with `git branch <name> <sha>`
 //   (run inside that repo). A removed worktree held no uncommitted work and its HEAD was merged.
 //
 // USAGE:
@@ -95,7 +97,7 @@ export function runClean(opts) {
         const raw = git(w.path, ['--no-optional-locks', 'status', '--porcelain', '--untracked-files=all']).trim();
         if (dirtyCount(w.path) !== 0) throw new Error('became dirty');
         run(repo.path, ['worktree', 'remove', ...(raw ? ['--force'] : []), w.path], 120000);
-        journal(logPath, { repo: repo.name, kind: 'worktree', name: w.branch || '(detached)', sha: w.sha, path: w.path });
+        journal(logPath, { repo: repo.name, kind: 'worktree', name: w.branch || '(detached)', sha: w.sha, path: w.path, via: w.via });
         result.removed.worktrees.push(w);
       } catch (e) {
         errors.push(`${repo.name}: worktree ${w.path} not removed (${String(e.message).split('\n')[0]})`);
@@ -107,7 +109,7 @@ export function runClean(opts) {
     for (const b of ev.candidates.branches) {
       try {
         run(repo.path, ['branch', '-D', b.branch], 10000);
-        journal(logPath, { repo: repo.name, kind: 'branch', name: b.branch, sha: b.sha, path: repo.path });
+        journal(logPath, { repo: repo.name, kind: 'branch', name: b.branch, sha: b.sha, path: repo.path, via: b.via });
         result.removed.branches.push(b);
       } catch (e) {
         errors.push(`${repo.name}: branch ${b.branch} not deleted (${String(e.message).split('\n')[0]})`);
@@ -119,12 +121,12 @@ export function runClean(opts) {
 
 function printReport(r) {
   console.log(r.mode === 'write' ? '== WRITE mode ==' : '== DRY RUN (nothing is deleted; use --write to delete) ==');
-  for (const b of r.candidates.branches) console.log(`  DELETE  branch    ${b.repo}: ${b.branch}  ${b.sha.slice(0, 7)}`);
-  for (const w of r.candidates.worktrees) console.log(`  REMOVE  worktree  ${w.repo}: ${w.path}  ${(w.sha || '').slice(0, 7)}`);
+  for (const b of r.candidates.branches) console.log(`  DELETE  branch    ${b.repo}: ${b.branch}  ${b.sha.slice(0, 7)} (${b.via})`);
+  for (const w of r.candidates.worktrees) console.log(`  REMOVE  worktree  ${w.repo}: ${w.path}  ${(w.sha || '').slice(0, 7)} (${w.via})`);
   for (const k of r.kept) console.log(`  KEPT    ${k.kind.padEnd(8)}  ${k.repo}: ${k.name} - ${k.reason}`);
   for (const s of r.skipped) console.log(`  SKIPPED ${s.repo}: ${s.reason}`);
-  for (const b of r.removed.branches) console.log(`  DELETED branch    ${b.repo}: ${b.branch}  ${b.sha.slice(0, 7)}`);
-  for (const w of r.removed.worktrees) console.log(`  REMOVED worktree  ${w.repo}: ${w.path}`);
+  for (const b of r.removed.branches) console.log(`  DELETED branch    ${b.repo}: ${b.branch}  ${b.sha.slice(0, 7)} (${b.via})`);
+  for (const w of r.removed.worktrees) console.log(`  REMOVED worktree  ${w.repo}: ${w.path}  ${(w.sha || '').slice(0, 7)} (${w.via})`);
   console.log(`\ncandidates: ${r.candidates.branches.length} branches + ${r.candidates.worktrees.length} worktrees - kept: ${r.kept.length} - removed: ${r.removed.branches.length} branches + ${r.removed.worktrees.length} worktrees`);
   if (r.removed.branches.length || r.removed.worktrees.length) console.log(`recovery: ${LOG_FILE} lists every deletion; a branch returns with: git branch <name> <sha>`);
 }

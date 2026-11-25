@@ -91,7 +91,7 @@
     "shield": { "escapeEnv": "AGENT_DESTRUCTIVE_OK", "forbiddenCommands": [] },
     "$comment_shield": "forbiddenCommands: [{ \"pattern\": \"<regex>\", \"reason\": \"<why>\" }] — extra shell commands the shield denies (a flag that gives false greens, a call that spends real money).",
     "hygiene": { "autoClean": false, "branchMinAgeHours": 24, "worktreeMinAgeHours": 6, "staleStashDays": 14, "ignoreFile": "scripts/git-hygiene-ignore.json", "equivalentMerge": "off" },
-    "$comment_hygiene": "autoClean false: the session start only reports merged branches and finished worktrees. true: it also removes what is provably lossless and writes a recovery log. equivalentMerge (off | squash | all): also recognise branches merged by squash or cherry-pick. worktreeDebtAsk (how many finished worktrees before the session start asks) comes from the profile."
+    "$comment_hygiene": "autoClean false: the session start only reports merged branches and finished worktrees. true: it also removes what is provably lossless and writes a recovery log. equivalentMerge (off | cherry): cherry also recognises branches whose content reached the target by squash or cherry-pick. worktreeDebtAsk (how many finished worktrees before the session start asks) comes from the profile."
   },
   "preCommit": { "checks": [] },
   "$comment_preCommit": "Extra commit-time checks: [{ \"id\": \"migrations\", \"command\": \"node scripts/x.mjs {files}\", \"whenStaged\": [\"db/migrations/**\"] }]. Board lint and the coordination archive check are built in.",

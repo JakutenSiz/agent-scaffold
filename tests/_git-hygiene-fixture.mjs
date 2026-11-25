@@ -108,3 +108,52 @@ export function writeFile(root, rel, text) {
   fs.mkdirSync(path.dirname(p), { recursive: true });
   fs.writeFileSync(p, text);
 }
+
+/**
+ * Equivalent-merge scenarios on top of makeFixture (the root must be on `main`):
+ *  sq-merged   two old commits, squash-merged into origin/main (never an ancestor)
+ *  picked      two old commits, cherry-picked one by one into origin/main
+ *  sq-extra    squash-merged, then one more commit on the branch afterwards
+ *  never       two old commits that never reach origin/main
+ *  orphan      old branch with no common history with main
+ * Worktrees (detached, aged): wt-sq at sq-merged, wt-sq-dirty at sq-merged (dirty), wt-sq-fresh at sq-merged (not aged).
+ */
+export function addEquivalentScenarios(fx) {
+  const { root, tmp } = fx;
+  const topic = (name, files) => {
+    git(root, ['checkout', '-b', name, 'main']);
+    for (const f of files) commit(root, f, OLD);
+    git(root, ['checkout', 'main']);
+  };
+  const squash = (name, message) => {
+    git(root, ['merge', '--squash', name]);
+    git(root, ['commit', '-m', message]);
+  };
+  topic('sq-merged', ['sq1.txt', 'sq2.txt']);
+  squash('sq-merged', 'squash sq-merged');
+  topic('picked', ['pk1.txt', 'pk2.txt']);
+  git(root, ['cherry-pick', 'picked~1', 'picked']);
+  topic('sq-extra', ['ex1.txt']);
+  squash('sq-extra', 'squash sq-extra');
+  git(root, ['checkout', 'sq-extra']);
+  commit(root, 'ex-later.txt', OLD);
+  git(root, ['checkout', 'main']);
+  topic('never', ['nv1.txt', 'nv2.txt']);
+  git(root, ['checkout', '--orphan', 'orphan']);
+  git(root, ['rm', '-rf', '--quiet', '.']);
+  commit(root, 'orphan.txt', OLD);
+  git(root, ['checkout', 'main']);
+  git(root, ['push', 'origin', 'main']);
+
+  const wt = (name) => {
+    const dir = path.join(tmp, name);
+    git(root, ['worktree', 'add', '--detach', dir, 'sq-merged']);
+    return dir;
+  };
+  const sq = wt('wt-sq');
+  const sqDirty = wt('wt-sq-dirty');
+  const sqFresh = wt('wt-sq-fresh');
+  fs.writeFileSync(path.join(sqDirty, 'scratch.txt'), 'uncommitted\n');
+  for (const d of [sq, sqDirty]) ageWorktree(d);
+  return { sq, sqDirty, sqFresh };
+}
