@@ -1,0 +1,4 @@
+{
+  "$comment": "Deliberately kept branches that git-hygiene-clean must never delete. Each entry: { \"repo\": \"<repo name from agent-scaffold.config.json>\", \"branch\": \"<branch>\", \"reason\": \"why it stays\", \"date\": \"YYYY-MM-DD\" }. A bare JSON array of such entries is accepted too. Configured via git.hygiene.ignoreFile.",
+  "entries": []
+}

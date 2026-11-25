@@ -1,9 +1,9 @@
 @echo off
 REM ============================================================
-REM agent-scaffold git hook installer -- enables the pre-push gate.
+REM agent-scaffold git hook installer -- enables the pre-push and pre-commit gates.
 REM Git does not run in-repo hooks automatically for security reasons;
 REM this script must be run once per clone (idempotent, safe to re-run).
-REM The gate itself lives at: .githooks\pre-push
+REM The gates live at: .githooks\pre-push and .githooks\pre-commit
 REM ============================================================
 SET ROOT=%~dp0
 
@@ -24,4 +24,4 @@ echo [setup-hooks] WARNING: gitleaks is not installed -- the secret scan will no
 echo [setup-hooks] Install: winget install Gitleaks.Gitleaks
 :gitleaks_ok
 
-echo [setup-hooks] pre-push gate configured for the root repo and every configured sub-repo.
+echo [setup-hooks] pre-push and pre-commit gates configured for the root repo and every configured sub-repo.

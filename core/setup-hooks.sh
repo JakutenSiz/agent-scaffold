@@ -4,9 +4,12 @@
 # for the Windows cmd.exe equivalent. Git does not run in-repo hooks
 # automatically for security reasons; this script must be run once per
 # clone. Idempotent -- safe to re-run at any time.
-# The gate itself lives at: .githooks/pre-push
+# The gates live at: .githooks/pre-push and .githooks/pre-commit
 # ============================================================
 ROOT=$(cd "$(dirname "$0")" && pwd)
+
+# Hooks must be executable (a checkout can lose the bit); harmless if already set.
+chmod +x "$ROOT"/.githooks/* 2>/dev/null
 
 git -C "$ROOT" config core.hooksPath "$ROOT/.githooks" && echo "[setup-hooks] root: configured"
 
@@ -30,4 +33,4 @@ if ! command -v gitleaks >/dev/null 2>&1 \
   echo "[setup-hooks] Install: winget install Gitleaks.Gitleaks (or: brew install gitleaks)"
 fi
 
-echo "[setup-hooks] pre-push gate configured for the root repo and every configured sub-repo."
+echo "[setup-hooks] pre-push and pre-commit gates configured for the root repo and every configured sub-repo."

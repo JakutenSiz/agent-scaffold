@@ -1,0 +1,23 @@
+#!/bin/sh
+# ============================================================
+# agent-scaffold pre-commit gate (thin wrapper).
+#
+# Installed via `core.hooksPath` (see setup-hooks.sh / setup-hooks.bat), so it runs for
+# every commit in the root repo and every configured sub-repo. All logic -- staged-file
+# matching, board/coordination lint, project checks from config.preCommit.checks -- lives
+# in scripts/pre-commit-check.mjs; when nothing staged matches, it exits without starting
+# any other process. This file only locates that script.
+#
+# Escape hatches are printed by the failing check itself (each check has its own env).
+# Disable entirely: git config --unset core.hooksPath
+# ============================================================
+
+hook_dir=$(cd "$(dirname "$0")" && pwd) || exit 0
+gate_script="$hook_dir/../scripts/pre-commit-check.mjs"
+
+# Scaffold scripts aren't installed alongside this hook, or node is missing -- fail open.
+[ -f "$gate_script" ] || exit 0
+command -v node >/dev/null 2>&1 || exit 0
+
+node "$gate_script"
+exit $?

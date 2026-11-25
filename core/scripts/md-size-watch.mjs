@@ -1,91 +1,156 @@
 #!/usr/bin/env node
+// Enforces: R-60
 /**
- * md-size-watch — sliding-window Markdown file size watcher.
+ * md-size-watch - sliding-window Markdown file size watcher.
  *
  * WHY: files like the task board, the coordination log, and each repo's
  * memory-bank/activeContext.md + progress.md are meant to hold only the
  * "current" window, but in practice they grow append-only forever until
- * nobody can read the whole thing in one sitting anymore.
+ * nobody can read the whole thing in one sitting anymore. A line count alone
+ * hides the worst cases: in one incident a board reached 1 MB with a single
+ * 68,000-character line while its line count looked fine. So three ceilings
+ * are measured separately: lines, UTF-8 bytes, and the longest line (in
+ * characters).
  *
- * WHAT IT DOES: measures each tracked sliding-window file's line count
- * against a ceiling and lists the ones OVER it. It renders NO VERDICT and
- * BLOCKS NOTHING by itself — it is meant to surface as a one-line nudge
- * (e.g. in a session-start hook). The ceiling is a "time to prune" signal;
+ * WHAT IT DOES: measures each tracked sliding-window file against its
+ * ceilings and lists the ones OVER any of them. It renders NO VERDICT and
+ * BLOCKS NOTHING by itself - it is meant to surface as a one-line nudge
+ * (e.g. in a session-start hook). A ceiling is a "time to prune" signal;
  * content is never deleted, only moved to an archive (see
  * memory-bank-archive.mjs for memory-bank files).
  *
  * All tracked files and ceilings come from agent-scaffold.config.json:
- *   - config.board.file          (ceiling config.board.ceiling)
- *   - config.coordination.file   (ceiling config.coordination.ceiling)
+ *   - config.board.file          (lines: board.ceiling, bytes: board.ceilingBytes,
+ *                                 longest line: board.maxLineChars)
+ *   - config.coordination.file   (lines: coordination.ceiling, bytes: coordination.ceilingBytes)
  *   - for each config.repos[]: <repo.path>/<config.memoryBank.dir>/activeContext.md
- *     and .../progress.md        (ceiling config.memoryBank.ceiling)
+ *     and .../progress.md        (lines: memoryBank.ceiling, bytes: memoryBank.ceilingBytes,
+ *                                 longest line: memoryBank.maxLineChars, default 2048)
+ * Files without a longest-line ceiling use board.maxLineChars.
  *
  * USAGE:
- *   node scripts/md-size-watch.mjs            # human-readable table
- *   node scripts/md-size-watch.mjs --line     # single line for hooks (empty output if all under ceiling)
- *   node scripts/md-size-watch.mjs --strict   # exit 1 if any file is over ceiling
+ *   node scripts/md-size-watch.mjs                 # human-readable table
+ *   node scripts/md-size-watch.mjs --line          # single line for hooks (NO output if all under ceilings)
+ *   node scripts/md-size-watch.mjs --strict        # exit 1 if any file is over a ceiling
+ *   node scripts/md-size-watch.mjs --root <dir>    # measure <dir> instead of the script's own project (worktrees)
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig } from './lib/config.mjs';
+import { isMainModule } from './lib/main-module.mjs';
 
-const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
-const { root, config, found } = loadConfig(SCRIPT_DIR);
-
-if (!found) {
-  console.log('[agent-scaffold] agent-scaffold.config.json not found; md-size-watch has nothing configured to check (fail-open).');
-  process.exit(0);
+/** The tracked targets with their three ceilings. */
+export function buildTargets(config) {
+  const lineChars = config.board.maxLineChars ?? 4096;
+  const mbLineChars = config.memoryBank.maxLineChars ?? 2048;
+  return [
+    { file: config.board.file, lines: config.board.ceiling, bytes: config.board.ceilingBytes, lineChars },
+    { file: config.coordination.file, lines: config.coordination.ceiling, bytes: config.coordination.ceilingBytes, lineChars },
+    ...(config.repos ?? []).flatMap((r) =>
+      ['activeContext.md', 'progress.md'].map((f) => ({
+        file: path.join(r.path || '.', config.memoryBank.dir, f),
+        lines: config.memoryBank.ceiling,
+        bytes: config.memoryBank.ceilingBytes,
+        lineChars: mbLineChars,
+      })),
+    ),
+  ];
 }
 
-const targets = [
-  { file: config.board.file, ceiling: config.board.ceiling },
-  { file: config.coordination.file, ceiling: config.coordination.ceiling },
-  ...(config.repos ?? []).flatMap((r) => [
-    { file: path.join(r.path || '.', config.memoryBank.dir, 'activeContext.md'), ceiling: config.memoryBank.ceiling },
-    { file: path.join(r.path || '.', config.memoryBank.dir, 'progress.md'), ceiling: config.memoryBank.ceiling },
-  ]),
-];
-
-const measurements = [];
-for (const t of targets) {
-  const p = path.join(root, t.file);
-  if (!fs.existsSync(p)) continue;
-  let lines = 0;
-  try {
-    lines = fs.readFileSync(p, 'utf8').split(/\r?\n/).length;
-  } catch {
-    continue;
+/** Measure one text against a target. Returns the measurement with an `over` list ("lines=5/4", ...). */
+export function measureText(text, target) {
+  const rows = text.split(/\r?\n/);
+  let longest = 0;
+  for (const row of rows) {
+    const n = row.length > longest ? [...row].length : 0; // code points; cheap pre-filter on UTF-16 length
+    if (n > longest) longest = n;
   }
-  measurements.push({ ...t, lines, ratio: lines / t.ceiling });
+  const bytes = Buffer.byteLength(text, 'utf8');
+  const over = [];
+  if (target.lines && rows.length > target.lines) over.push(`lines=${rows.length}/${target.lines}`);
+  if (target.bytes && bytes > target.bytes) over.push(`bytes=${bytes}/${target.bytes}`);
+  if (target.lineChars && longest > target.lineChars) over.push(`longest-line=${longest}/${target.lineChars}`);
+  const ratio = Math.max(
+    target.lines ? rows.length / target.lines : 0,
+    target.bytes ? bytes / target.bytes : 0,
+    target.lineChars ? longest / target.lineChars : 0,
+  );
+  return { ...target, lineCount: rows.length, byteCount: bytes, longest, over, ratio };
 }
 
-const over = measurements.filter((m) => m.lines > m.ceiling).sort((a, b) => b.ratio - a.ratio);
-const lineMode = process.argv.includes('--line');
+export function measureAll(root, config) {
+  const out = [];
+  for (const t of buildTargets(config)) {
+    const p = path.join(root, t.file);
+    if (!fs.existsSync(p)) continue;
+    let text;
+    try {
+      text = fs.readFileSync(p, 'utf8');
+    } catch {
+      continue;
+    }
+    out.push(measureText(text, t));
+  }
+  return out;
+}
 
-if (lineMode) {
-  if (over.length) {
-    const list = over.map((o) => `${o.file} ${o.lines}/${o.ceiling}`).join(' · ');
-    process.stdout.write(
-      `MD SIZE WARNING: ${list} — over ceiling; time to prune (content is NOT deleted, move it to an archive file; ` +
-        'for board/coordination use a compact template + archive file, for memory-bank files use ' +
-        '`node scripts/memory-bank-archive.mjs <repo>`).',
+export function warningLine(overs) {
+  if (!overs.length) return '';
+  const list = overs.map((o) => `${o.file} ${o.over.join(', ')}`).join(' · ');
+  return (
+    `MD SIZE WARNING: ${list} - over ceiling; time to prune (content is NOT deleted, move it to an archive file; ` +
+    'for board/coordination use a compact template + archive file, for memory-bank files use ' +
+    '`node scripts/memory-bank-archive.mjs <repo>`).'
+  );
+}
+
+function resolveRoot(argv) {
+  const i = argv.indexOf('--root');
+  if (i >= 0) {
+    const dir = argv[i + 1];
+    if (!dir || dir.startsWith('--')) {
+      console.error('--root needs a directory: --root <dir>');
+      process.exit(2);
+    }
+    return path.resolve(dir);
+  }
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+
+function main() {
+  const argv = process.argv.slice(2);
+  const { root, config, found } = loadConfig(resolveRoot(argv));
+  if (!found) {
+    console.log('[agent-scaffold] agent-scaffold.config.json not found; md-size-watch has nothing configured to check (fail-open).');
+    process.exit(0);
+  }
+  const measurements = measureAll(root, config);
+  const over = measurements.filter((m) => m.over.length).sort((a, b) => b.ratio - a.ratio);
+  const strict = argv.includes('--strict');
+
+  if (argv.includes('--line')) {
+    process.stdout.write(warningLine(over));
+    process.exit(strict && over.length ? 1 : 0);
+  }
+
+  const pct = (m) => `${Math.round(m.ratio * 100)}%`;
+  console.log('md-size-watch - sliding-window files\n');
+  for (const m of measurements) {
+    const flag = m.over.length ? 'X' : m.ratio > 0.8 ? '!' : 'ok';
+    console.log(
+      `  ${flag.padEnd(2)} ${m.file.padEnd(46)} lines=${m.lineCount}/${m.lines} bytes=${m.byteCount}/${m.bytes} ` +
+        `longest-line=${m.longest}/${m.lineChars} (${pct(m)})`,
     );
   }
-  process.exit(0);
+  console.log(
+    over.length
+      ? `\n${over.length} file(s) over a ceiling. Pruning: content is NOT deleted, it moves to an archive.\n` +
+          '  - board/coordination -> compact template + archive file (see project docs)\n' +
+          '  - memory-bank         -> `node scripts/memory-bank-archive.mjs <repo>`'
+      : '\nAll files are under their ceilings.',
+  );
+  process.exit(strict && over.length ? 1 : 0);
 }
 
-const pct = (m) => `${Math.round(m.ratio * 100)}%`;
-console.log('md-size-watch — sliding-window files\n');
-for (const m of measurements) {
-  const flag = m.lines > m.ceiling ? '❌' : m.ratio > 0.8 ? '⚠️ ' : '✅';
-  console.log(`  ${flag} ${m.file.padEnd(46)} ${String(m.lines).padStart(6)} / ${m.ceiling}  (${pct(m)})`);
-}
-console.log(
-  over.length
-    ? `\n${over.length} file(s) over ceiling. Pruning: content is NOT deleted, it moves to an archive.\n` +
-        '  · board/coordination -> compact template + archive file (see project docs)\n' +
-        '  · memory-bank         -> `node scripts/memory-bank-archive.mjs <repo>`'
-    : '\nAll files are under ceiling.',
-);
-process.exit(process.argv.includes('--strict') && over.length ? 1 : 0);
+if (isMainModule(import.meta.url)) main();

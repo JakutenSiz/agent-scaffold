@@ -32,21 +32,24 @@
  *   node scripts/board-staleness.mjs
  *   node scripts/board-staleness.mjs --strict   # exit 1 if any suspects remain
  *   node scripts/board-staleness.mjs --all      # ignore the suppression list
+ *   node scripts/board-staleness.mjs --line     # one line for the SessionStart note (or nothing)
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { loadConfig } from './lib/config.mjs';
+import { isMainModule } from './lib/main-module.mjs';
+import { DEFAULT_DONE_SIGNALS, DEFAULT_PARTIAL_SIGNALS } from './lib/board-format.mjs';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const strict = process.argv.includes('--strict');
 const all = process.argv.includes('--all');
+// `--line`: SessionStart mode - one line when suspects exist, nothing otherwise; always exit 0.
+const lineMode = process.argv.includes('--line');
 // Skip the CLI body when imported (e.g. by a test) -- it only runs when this
 // file is executed directly (`node scripts/board-staleness.mjs`).
-const runningDirectly = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+const runningDirectly = isMainModule(import.meta.url);
 
-const DEFAULT_DONE_SIGNALS = ['done', 'closed', 'live', 'deployed', 'merged', 'shipped', 'deploy ok'];
-const DEFAULT_PARTIAL_SIGNALS = ['remaining', 'pending', 'awaiting', 'blocked', 'todo'];
 const THRESHOLD = 2; // net (done-signal hits - partial-signal hits) needed for an OPEN heading to become a suspect
 
 /**
@@ -73,12 +76,14 @@ export function readSuppressedCodes(boardText) {
 if (runningDirectly) {
   const { root, config, found } = loadConfig(SCRIPT_DIR);
   if (!found) {
+    if (lineMode) process.exit(0);
     console.log('[agent-scaffold] agent-scaffold.config.json not found; board-staleness has nothing configured to check (fail-open).');
     process.exit(0);
   }
 
   const boardPath = path.join(root, config.board.file);
   if (!fs.existsSync(boardPath)) {
+    if (lineMode) process.exit(0);
     console.error(`Board file not found: ${boardPath}`);
     process.exit(2);
   }
@@ -126,6 +131,14 @@ if (runningDirectly) {
   }
 
   suspects.sort((a, b) => b.score - a.score);
+
+  if (lineMode) {
+    if (suspects.length) {
+      const codes = suspects.slice(0, 3).map((s) => s.code).join(', ');
+      console.log(`board staleness: ${suspects.length} open-looking item(s) read done (${codes}${suspects.length > 3 ? ', ...' : ''}) -> node scripts/board-staleness.mjs`);
+    }
+    process.exit(0);
+  }
 
   function printSuppressionLine() {
     if (suppressed.length > 0) {
