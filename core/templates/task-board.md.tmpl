@@ -53,6 +53,7 @@ Rules: the tag reflects the **remaining** work, not the whole scope. When unsure
 ### <code> <status> [{{LABEL_HUMAN_ONLY}}|{{LABEL_ANYONE}}] <title — the item's identity; references point here>
 **Remaining:** concrete work still to do (which repo/file/endpoint; if a human step, name who)
 **Last evidence:** one line — date + sha / release / measurement
+**Human step:** [{{HUMAN_TAG}}] one sentence, optional (YYYY-MM-DD) date · [{{HUMAN_TAG}}] next person's step (omit the line when no human is needed)
 **Decision/blocker:** only what is STILL in force (owner decision, external approval, flag state)
 **Trap:** ≤ 3 lines — what goes wrong if you do not know it (env name, order, silent failure)
 **Full history:** `{{BOARD_ARCHIVE}} § <code>`
@@ -63,7 +64,9 @@ Rules: the tag reflects the **remaining** work, not the whole scope. When unsure
 - **Update the `###` heading in the same edit as the body.** Title and body go stale independently; a heading that still says 🔴 over a body that says "shipped" is the most common rot.
 - **Never open a new `##`/`###` for a sub-note.** Sub-notes go into the item's fields or into the archive.
 - **Look at the code before starting or closing an item.** The claim in the item is verified against the repo, not trusted.
-- **Duplicate check before adding:** `git log -5`, grep the board for the slug, and check the coordination file — a concurrent session may already have written the same finding. If so mark yours `↪ DUPLICATE — see <code>` instead of adding a twin.
+- **Duplicate check before adding:** run `node scripts/board-duplicate.mjs "<keyword>"` (recent commits, board and archive matches, code free or taken) and check the coordination file — a concurrent session may already have written the same finding. If so mark yours `↪ DUPLICATE — see <code>` instead of adding a twin.
+- **Human step expiry:** the **Human step** field is the only thing `node scripts/human-queue.mjs` reads (one queue per `[TAG]`). A step older than {{HUMAN_STEP_WEEKS}} weeks is flagged EXPIRED; the human then supplies evidence or the item is deferred (⏸️). Scripts never drop an item.
+- **Lint at commit:** `node scripts/board-lint.mjs --staged` checks the items you changed (completion line added without a heading/Remaining change, appended eras, duplicate codes, heading vs Remaining mismatch). Mode and escape come from the project config (`board.lint`).
 
 ### 🔢 Item codes
 
@@ -75,4 +78,4 @@ No second hand-maintained status file. If a filtered view is needed, a script ge
 
 ### 📦 Archive discipline
 
-A closed item's full text moves to `{{BOARD_ARCHIVE}}` under a `## <code>` heading in the same commit that marks it ✅. When the sentinel warns, archive closed items; never trim open ones.
+A closed item's full text moves to `{{BOARD_ARCHIVE}}`: run `node scripts/board-archive.mjs` (dry run), then `--write`. Items whose heading is ✅ and whose **Remaining** carries no owner tag move verbatim — each keeps its `### <code>` heading under a dated closure section, so `§ <code>` references still resolve with a search. A ✅ item that still carries tagged work stays and is reported. Never move items by hand and never trim open ones.

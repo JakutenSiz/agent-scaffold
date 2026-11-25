@@ -8,13 +8,17 @@ Canonical: `CLAUDE.md` · `docs/agent-working-rules.md` · `docs/memory-bank-gui
 
 ## Before you start (the SessionStart hook would do this for you)
 1. `git pull --ff-only` in the root{{MULTI_REPO_PULL_NOTE}}.
-2. Read `{{COORDINATION_FILE}}` (open claims and messages only) and claim your item.
-3. Read the `{{MEMORY_BANK_DIR}}/` of the repo you will work in (`repoMap.md`, `activeContext.md`).
-4. `node scripts/md-size-watch.mjs --line` — act on a warning by archiving, never by deleting.
+2. Read `{{COORDINATION_FILE}}` (open claims and messages only) and claim your item with one row in the claims table.
+3. Read the `{{MEMORY_BANK_DIR}}/` of the repo you will work in (`repoMap.md`, `activeContext.md`, `capabilityRegistry.md`).
+4. The status lines: `node scripts/md-size-watch.mjs --line`, `node scripts/human-queue.mjs --line`, `node scripts/git-hygiene-watch.mjs --line`, `node scripts/coordination-archive.mjs --line` — act on a size warning by archiving, never by deleting.
+
+## While you work (the PreToolUse hooks would stop these for you)
+- Shared checkout: never `git stash`, `git reset --hard`, `git checkout -- <path>`, `git restore <path>`, `git clean -f` or `--autostash`. For a baseline run: `git worktree add --detach <dir> <sha>`.
+- Commit only your own paths: `git diff --cached --stat`, then `git commit -- <paths>`.
 
 ## Before you push (the push-guard hook would do this for you)
 1. `node scripts/repomap-check.mjs <repo>` — new source files must be findable in `repoMap.md`.
-2. The git pre-push hook (secret scan + syntax gate on deploy branches) is agent-independent and runs for you once `setup-hooks.sh` was executed.
+2. The git hooks are agent-independent and run for you once `setup-hooks.sh` was executed: pre-commit (board lint, coordination check), pre-push (secret scan + syntax gate on deploy branches, large-file check).
 3. Deploy branches: <!-- fill: list per repo, or "none". --> — pushing there is a deploy; confirm with the human first.
 
 ## Boundaries

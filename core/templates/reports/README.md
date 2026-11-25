@@ -12,5 +12,6 @@ another agent) **searches here first**, then in `_archive/`.
 - What does NOT go here: a repo's permanent facts (those go to its `memory-bank/`),
   day-to-day agent messages (coordination file), task status (task board).
 - A stale report may be deleted or moved to `_archive/` — this is an archive, not holy ground.
+- An old report is **evidence, not a lock.** A "rejected / not adopted" decision rested on some condition (model version, price, constraint, measurement); when that condition changes, reopen it. When you write a rejection, write the condition too: `Reopen if: <what would have to change>`.
 - Implementation recipes go to `{{SPECS_DIR}}/`, not here.
 - Reports of closed items move to `_archive/` (git history is kept).
