@@ -235,3 +235,39 @@ test('green check without output stays silent', () => {
   stage(dir, 'task-board.md');
   assert.equal(runHook(dir).out, '');
 });
+
+// ---------------------------------------------------------------- coordination.checkMode
+
+// Fixture check that records the COORDINATION_CHECK value it was started with, then fails.
+const envProbe = `import fs from 'node:fs';
+fs.appendFileSync('ran.log', 'COORDINATION_CHECK=' + (process.env.COORDINATION_CHECK ?? '') + '\\n');
+process.exit(1);
+`;
+
+test('coordination.checkMode=warn passes COORDINATION_CHECK=warn to the check; block (default) does not', () => {
+  for (const [config, expected] of [
+    [{ coordination: { file: 'coordination.md', checkMode: 'warn' } }, 'warn'],
+    [{ profile: 'minimal', coordination: { file: 'coordination.md' } }, 'warn'],
+    [{ coordination: { file: 'coordination.md' } }, ''],
+    [{ profile: 'strict', coordination: { file: 'coordination.md' } }, ''],
+  ]) {
+    const dir = project(config, { 'scripts/coordination-archive.mjs': envProbe, 'coordination.md': '# c\n' });
+    stage(dir, 'coordination.md');
+    runHook(dir, { COORDINATION_CHECK: '' });
+    assert.equal(ranLog(dir).trim(), `COORDINATION_CHECK=${expected}`, JSON.stringify(config));
+  }
+});
+
+test('an explicit COORDINATION_CHECK value beats the configured mode; skip still skips', () => {
+  const cfg = { coordination: { file: 'coordination.md', checkMode: 'warn' } };
+  const files = { 'scripts/coordination-archive.mjs': envProbe, 'coordination.md': '# c\n' };
+  const a = project(cfg, files);
+  stage(a, 'coordination.md');
+  runHook(a, { COORDINATION_CHECK: 'other' });
+  assert.equal(ranLog(a).trim(), 'COORDINATION_CHECK=other');
+  const b = project(cfg, files);
+  stage(b, 'coordination.md');
+  const r = runHook(b, { COORDINATION_CHECK: 'skip' });
+  assert.equal(r.code, 0);
+  assert.equal(ranLog(b), '');
+});

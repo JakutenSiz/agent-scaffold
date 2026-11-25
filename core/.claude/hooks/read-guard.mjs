@@ -6,7 +6,7 @@
 // Modes (argv[2]):
 //   pre   (PreToolUse Read|Grep|Glob|Agent|Workflow|Task|Bash|PowerShell):
 //         - Read/Grep/Glob: counter++; once the main session crosses
-//           denyAfterReads the tool call is DENIED (the model cannot keep
+//           denyAfterReads (0 = off, warn only) the tool call is DENIED (the model cannot keep
 //           reading; it has to brief and hand off to a subagent).
 //         - Bash/PowerShell (only when delegation.countShell is true): a command that
 //           lib/command-class.mjs classifies as a read (cat/grep/sed -n ...) goes to the
@@ -56,6 +56,7 @@ const { root, config, found } = loadConfig(startDir);
 if (!found) process.exit(0); // scaffold not installed here — stay silent
 
 const WARN_AT = config.delegation.warnAfterReads;
+// 0 = never deny reads (warn only), same convention as denyAfterEdits.
 const DENY_AFTER = config.delegation.denyAfterReads;
 const EDIT_WARN_AT = config.delegation.warnAfterEdits ?? 15;
 // 0 = never deny (default). The source project only ever warned; a project that wants the hard stop sets a number.
@@ -205,7 +206,7 @@ if (mode === 'pre') {
     if (isReadCommand(cmd)) {
       const n = readNumber(cntFile) + 1;
       writeNumber(cntFile, n);
-      if (n > DENY_AFTER) {
+      if (DENY_AFTER > 0 && n > DENY_AFTER) {
         emit('PreToolUse', {
           permissionDecision: 'deny',
           permissionDecisionReason: readDenyReason(n, '(Reading through Bash/PowerShell with cat/grep/sed -n counts too.)'),
@@ -220,7 +221,7 @@ if (mode === 'pre') {
 
   const n = readNumber(cntFile) + 1;
   writeNumber(cntFile, n);
-  if (n > DENY_AFTER) {
+  if (DENY_AFTER > 0 && n > DENY_AFTER) {
     emit('PreToolUse', { permissionDecision: 'deny', permissionDecisionReason: readDenyReason(n) });
   }
   process.exit(0);
@@ -234,8 +235,9 @@ if (SHELL_TOOLS.has(tool)) {
 if (readNumber(cntFile) === WARN_AT) {
   emit('PostToolUse', {
     additionalContext:
-      `[read-guard] ${WARN_AT} reads/searches have happened in the main context this turn. Anything past ` +
-      `${DENY_AFTER} is DENIED — if this looks like it will keep growing, hand off to '${SCOUT_NAME}'/'${ANALYST_NAME}' now ` +
+      `[read-guard] ${WARN_AT} reads/searches have happened in the main context this turn. ` +
+      (DENY_AFTER > 0 ? `Anything past ${DENY_AFTER} is DENIED — if` : 'If') +
+      ` this looks like it will keep growing, hand off to '${SCOUT_NAME}'/'${ANALYST_NAME}' now ` +
       '(write down what you have learned as a brief) so it can return a summary to you.',
   });
 }

@@ -241,3 +241,34 @@ test('edit mode defaults: one warning at 15, never a deny', () => {
     for (let i = 16; i <= 40; i++) assert.equal(run(env, { mode: 'edit', sid, tool: 'Write' }).stdout, '', `edit ${i}`);
   });
 });
+
+test('denyAfterReads=0 means off: no read is ever denied (Read and shell reads)', () => {
+  const sid = 'sid-deny-off-' + process.pid;
+  withEnv(sid, { delegation: { denyAfterReads: 0 } }, (env) => {
+    for (let i = 1; i <= 25; i++) {
+      assert.equal(run(env, { mode: 'pre', sid, tool: 'Read' }).stdout, '', `Read ${i}`);
+      assert.equal(run(env, { mode: 'pre', sid, tool: 'Bash', command: 'cat foo.txt' }).stdout, '', `cat ${i}`);
+    }
+  });
+});
+
+test('minimal profile: reads are never denied; the soft reminder still fires and does not claim a deny', () => {
+  const sid = 'sid-minimal-' + process.pid;
+  withEnv(sid, { profile: 'minimal' }, (env) => {
+    for (let i = 1; i <= 8; i++) {
+      assert.equal(run(env, { mode: 'pre', sid, tool: 'Read' }).stdout, '', `pre ${i}`);
+      const post = run(env, { mode: 'post', sid, tool: 'Read' });
+      if (i < 8) assert.equal(post.stdout, '', `post ${i}`);
+      else assert.doesNotMatch(out(post).hookSpecificOutput.additionalContext, /DENIED/);
+    }
+    for (let i = 9; i <= 30; i++) assert.equal(run(env, { mode: 'pre', sid, tool: 'Read' }).stdout, '', `pre ${i}`);
+  });
+});
+
+test('strict profile: the 7th read is denied', () => {
+  const sid = 'sid-strict-' + process.pid;
+  withEnv(sid, { profile: 'strict' }, (env) => {
+    for (let i = 1; i <= 6; i++) assert.equal(run(env, { mode: 'pre', sid, tool: 'Read' }).stdout, '', `read ${i}`);
+    assert.equal(out(run(env, { mode: 'pre', sid, tool: 'Read' })).hookSpecificOutput.permissionDecision, 'deny');
+  });
+});

@@ -8,7 +8,7 @@
 //    branches cannot be deleted from here (DENY). A measured false positive: nine stale
 //    branches could not be removed because the delete push tripped the behind gate.
 // 1) BEHIND-PUSH: fetch the target branch; if local is behind, DENY ("pull first").
-// 1b) MAP GATE: source files added by this push range that cannot be found in that repo's
+// 1b) MAP GATE (config.pushGate.mapGate: block | off): source files added by this push range that cannot be found in that repo's
 //     memory-bank/repoMap.md are DENIED (rule: scripts/repomap-check.mjs). The check reads
 //     the working tree, so it only counts as proof when HEAD IS the pushed commit and the
 //     tree is clean (assertWorktree); otherwise the push is DENIED with the reason.
@@ -20,7 +20,7 @@
 //      initialised inside a worktree, come without it).
 //    - DEPLOY LOCK: another process is already pushing to a deploy branch of this same repo.
 //      Escape: prefix the command with DEPLOY_LOCK=skip.
-//    - CONFIRM (one single ask): pushing here is an automatic deploy, so this gate stands in
+//    - CONFIRM (one single ask; config.pushGate.confirm: ask | off): pushing here is an automatic deploy, so this gate stands in
 //      for CI.
 // All gates FAIL OPEN on fetch/parse errors (git's own rejection is the backstop) — including
 // when this project has not installed the scaffold.
@@ -247,7 +247,7 @@ function evaluate(inv, ctx) {
 
   // GATE 1b — MAP: can source files added in this push range be found in repoMap.md?
   const mapFile = path.join(top, config.memoryBank.dir, 'repoMap.md');
-  if (live.length && existsSync(mapFile)) {
+  if ((config.pushGate?.mapGate ?? 'block') !== 'off' && live.length && existsSync(mapFile)) {
     for (const sp of live) {
       try {
         const ref = `${remote}/${sp.dst}`;
@@ -339,7 +339,8 @@ function evaluate(inv, ctx) {
     if (lock) return { deny: lock };
   } catch {}
 
-  // 2c — CONFIRM.
+  // 2c — CONFIRM (config.pushGate.confirm = off silences only this ask; the gates above stay).
+  if ((config.pushGate?.confirm ?? 'ask') === 'off') return {};
   return {
     ask:
       `DEPLOY CONFIRM GATE: this push targets ${deployHit.map((b) => `'${b}'`).join(', ')} in '${repoName || '?'}' — ` +

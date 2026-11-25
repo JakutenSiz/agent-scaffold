@@ -12,8 +12,11 @@ import path from 'node:path';
 
 export const CONFIG_FILE = 'agent-scaffold.config.json';
 
+// DEFAULTS are the `standard` profile. `profile` (minimal | standard | strict) selects a partial
+// layer from PROFILES below; the user's config file is merged on top of it and always wins.
 export const DEFAULTS = {
   version: 2,
+  profile: 'standard',
   projectName: 'project',
   language: 'en',
   layout: 'single',
@@ -31,10 +34,13 @@ export const DEFAULTS = {
     lint: { mode: 'warn', escapeEnv: 'BOARD_LINT' },
     humanStepExpiryWeeks: 4,
   },
-  coordination: { file: 'coordination.md', archive: 'coordination-archive.md', ceiling: 1200, ceilingBytes: 131072, staleClaimDays: 7 },
-  memoryBank: { dir: 'memory-bank', ceiling: 800, ceilingBytes: 65536, maxLineChars: 2048, windowDays: 14, mapBudgetBytes: 8000, pendingPhrases: ['pending', 'awaiting', 'waiting for', 'blocked'] },
+  // checkMode: block | warn - what the commit-time coordination check does with findings.
+  coordination: { file: 'coordination.md', archive: 'coordination-archive.md', ceiling: 1200, ceilingBytes: 131072, staleClaimDays: 7, checkMode: 'block' },
+  // reuseGate: block | off - the reuse-registry deny in the map guardian (the map injection stays).
+  memoryBank: { dir: 'memory-bank', ceiling: 800, ceilingBytes: 65536, maxLineChars: 2048, windowDays: 14, mapBudgetBytes: 8000, pendingPhrases: ['pending', 'awaiting', 'waiting for', 'blocked'], reuseGate: 'block' },
   docs: { reports: 'reports', specs: 'specs', workingRules: 'docs/agent-working-rules.md', memoryBankGuide: 'docs/memory-bank-guide.md', memoryBankSchema: 'docs/memory-bank-schema.json', toolTraps: 'docs/tool-traps.md' },
   delegation: {
+    // denyAfterReads / denyAfterEdits: 0 = never deny (warn only).
     warnAfterReads: 5, denyAfterReads: 10, countShell: true, warnAfterEdits: 15, denyAfterEdits: 0,
     subagents: { scout: 'scout', analyst: 'analyst', worker: 'worker', verifier: 'verifier' },
   },
@@ -57,15 +63,73 @@ export const DEFAULTS = {
   git: {
     protectedBranches: [],
     shield: { escapeEnv: 'AGENT_DESTRUCTIVE_OK', forbiddenCommands: [] },
-    hygiene: { autoClean: false, branchMinAgeHours: 24, worktreeMinAgeHours: 6, staleStashDays: 14, worktreeDebtAsk: 5, ignoreFile: 'scripts/git-hygiene-ignore.json' },
+    hygiene: { autoClean: false, branchMinAgeHours: 24, worktreeMinAgeHours: 6, staleStashDays: 14, worktreeDebtAsk: 5, ignoreFile: 'scripts/git-hygiene-ignore.json',
+      // off | squash | all - recognise branches merged by squash / cherry-pick (read by the hygiene scripts).
+      equivalentMerge: 'off' },
   },
   preCommit: { checks: [] },
-  pushGate: { maxBlobMB: 2, bigBlobMode: 'warn', bigBlobEnv: 'BIG_FILE_OK', requireHooksPath: true },
+  // mapGate: block | off (repo-map check on pushed source files); confirm: ask | off (deploy-branch ask).
+  pushGate: { maxBlobMB: 2, bigBlobMode: 'warn', bigBlobEnv: 'BIG_FILE_OK', requireHooksPath: true, mapGate: 'block', confirm: 'ask' },
   testRunner: { processName: 'chrome-headless-shell', maxWorkers: 2, maxProcesses: 8, triggerPattern: 'playwright|e2e' },
   orphans: { pattern: 'node --test', maxAgeMinutes: 60, maxRssMB: 4096 },
   codex: { riskyPatterns: [] },
   secretScan: { tool: 'gitleaks', failClosed: true, skipEnv: 'SKIP_PUSH_GATE' },
+  // Secret-file shield. Globs without "/" match the base name. `allow` is subtracted from `protectedPaths`.
+  secrets: {
+    mode: 'block',
+    protectedPaths: [
+      '.env', '.env.*', '**/*.pem', '**/*.key', '**/*.p12', '**/*.pfx', '**/id_rsa*', '**/id_ed25519*',
+      '**/.ssh/**', '**/.aws/credentials', '**/.npmrc', '**/.netrc', '**/.git-credentials',
+      '**/service-account*.json', '**/credentials*.json',
+    ],
+    allow: ['.env.example', '.env.sample', '.env.template', '**/*.pub'],
+  },
+  // Completion gate: `command` runs before a task may be closed; empty = gate disabled.
+  doneGate: { command: '', timeoutSec: 900, mode: 'block', exempt: [] },
+  // Handoff packet: directory and size budget.
+  handoff: { dir: 'handoffs', budgetBytes: 8192 },
 };
+
+// Partial config layers selected by `profile`. Rules: no arrays here (deepMerge replaces arrays
+// wholesale); only keys that differ from DEFAULTS (= standard). Fixed in EVERY profile and thus
+// never listed: destructive-git denial, subagent-recursion denial, secretScan.failClosed,
+// secrets.mode.
+export const PROFILES = {
+  minimal: {
+    board: { lint: { mode: 'off' } },
+    pushGate: { maxBlobMB: 10, bigBlobMode: 'warn', requireHooksPath: false, mapGate: 'off', confirm: 'off' },
+    delegation: { warnAfterReads: 8, denyAfterReads: 0, warnAfterEdits: 30, denyAfterEdits: 0 },
+    session: { context: { warnTokens: 600000 } },
+    git: { hygiene: { worktreeDebtAsk: 20 } },
+    memoryBank: { reuseGate: 'off' },
+    coordination: { checkMode: 'warn' },
+    testRunner: { maxWorkers: 4 },
+    doneGate: { mode: 'off' },
+  },
+  standard: {},
+  strict: {
+    board: { lint: { mode: 'block' } },
+    pushGate: { maxBlobMB: 1, bigBlobMode: 'block', requireHooksPath: true, mapGate: 'block', confirm: 'ask' },
+    delegation: { warnAfterReads: 3, denyAfterReads: 6, warnAfterEdits: 10, denyAfterEdits: 25 },
+    session: { context: { warnTokens: 200000 } },
+    git: { hygiene: { worktreeDebtAsk: 2 } },
+    memoryBank: { reuseGate: 'block' },
+    coordination: { checkMode: 'block' },
+    testRunner: { maxWorkers: 1 },
+    doneGate: { mode: 'block' },
+  },
+};
+
+/**
+ * Resolves a profile name to { name, layer }. A missing name means `standard`; an unknown name
+ * prints one stderr warning and falls back to `standard`.
+ */
+export function resolveProfile(name) {
+  if (name === undefined || name === null || name === '') return { name: 'standard', layer: PROFILES.standard };
+  if (typeof name === 'string' && Object.hasOwn(PROFILES, name)) return { name, layer: PROFILES[name] };
+  process.stderr.write(`[agent-scaffold] unknown profile ${JSON.stringify(name)} (expected ${Object.keys(PROFILES).join(' | ')}); using standard\n`);
+  return { name: 'standard', layer: PROFILES.standard };
+}
 
 function deepMerge(base, over) {
   if (Array.isArray(base) || Array.isArray(over)) return over ?? base;
@@ -90,7 +154,10 @@ export function loadConfig(startDir = process.cwd()) {
   if (!root) return { root: path.resolve(startDir), config: DEFAULTS, found: false };
   try {
     const raw = JSON.parse(fs.readFileSync(path.join(root, CONFIG_FILE), 'utf8'));
-    return { root, config: deepMerge(DEFAULTS, raw), found: true };
+    const profile = resolveProfile(raw?.profile);
+    const config = deepMerge(deepMerge(DEFAULTS, profile.layer), raw);
+    config.profile = profile.name; // an unknown name resolves to standard
+    return { root, config, found: true };
   } catch (e) {
     process.stderr.write(`[agent-scaffold] ${CONFIG_FILE} unreadable (${e.message}); using defaults\n`);
     return { root, config: DEFAULTS, found: false };

@@ -1,6 +1,8 @@
 {
   "$comment": "Copy to agent-scaffold.config.json at the PROJECT root (next to CLAUDE.md). All hooks and scripts read this file. Paths are relative to the project root. Keys marked (auto) are filled by the bootstrap; edit freely afterwards.",
   "version": 2,
+  "profile": "standard",
+  "$comment_profile": "minimal | standard | strict. The profile sets the thresholds and gate modes that are NOT written in this file: board.lint.mode, delegation.warnAfterReads/denyAfterReads/warnAfterEdits/denyAfterEdits (0 = never deny), session.context.warnTokens, git.hygiene.worktreeDebtAsk, pushGate.maxBlobMB/bigBlobMode/requireHooksPath/mapGate/confirm, memoryBank.reuseGate, coordination.checkMode, testRunner.maxWorkers, doneGate.mode. Write one of these keys here only to override the profile for that single setting; a value in this file always wins. Fixed in every profile: destructive-git denial, subagent-recursion denial, secretScan.failClosed, secrets.mode.",
   "projectName": "my-project",
   "language": "en",
   "layout": "single",
@@ -37,14 +39,15 @@
     "maxLineChars": 4096,
     "fields": { "remaining": "Remaining", "lastEvidence": "Last evidence", "decision": "Decision/blocker", "trap": "Trap", "history": "Full history", "humanStep": "Human step" },
     "$comment_fields": "Field names of the compact item template. If the board is written in another language, put the translated field names here; the board scripts read them from this map.",
-    "lint": { "mode": "warn", "escapeEnv": "BOARD_LINT" },
-    "$comment_lint": "Commit-time board lint. 'warn' prints findings, 'block' stops the commit. Start with warn; switch to block once the findings are real.",
+    "lint": { "escapeEnv": "BOARD_LINT" },
+    "$comment_lint": "Commit-time board lint. The mode (off | warn | block) comes from the profile (standard = warn); the environment variable named here overrides it for one commit.",
     "humanStepExpiryWeeks": 4,
     "doneSignals": ["done", "closed", "live", "deployed", "merged", "shipped", "deploy ok"],
     "partialSignals": ["remaining", "pending", "awaiting", "blocked", "todo"],
     "$comment_signals": "Used by scripts/board-staleness.mjs. For a non-English language ADD that language's words here, or the sentinel never fires."
   },
   "coordination": { "file": "coordination.md", "archive": "coordination-archive.md", "ceiling": 1200, "ceilingBytes": 131072, "staleClaimDays": 7 },
+  "$comment_coordination": "checkMode (block | warn) is set by the profile; COORDINATION_CHECK=warn|skip overrides it for one commit.",
   "memoryBank": {
     "dir": "memory-bank",
     "ceiling": 800,
@@ -52,6 +55,7 @@
     "maxLineChars": 2048,
     "windowDays": 14,
     "mapBudgetBytes": 8000,
+    "$comment_reuseGate": "reuseGate (block | off) is set by the profile: off keeps the map injection but never denies a write.",
     "pendingPhrases": [
       "pending", "awaiting", "waiting for", "not yet deployed", "flag off", "dark-launched", "blocked",
       "bekliyor", "bekleniyor", "henüz", "bayrak kapalı", "karanlık"
@@ -59,9 +63,8 @@
   },
   "docs": { "reports": "reports", "specs": "specs", "workingRules": "docs/agent-working-rules.md", "memoryBankGuide": "docs/memory-bank-guide.md", "memoryBankSchema": "docs/memory-bank-schema.json", "toolTraps": "docs/tool-traps.md" },
   "delegation": {
-    "warnAfterReads": 5, "denyAfterReads": 10, "countShell": true,
-    "warnAfterEdits": 15, "denyAfterEdits": 0,
-    "$comment_edits": "A run of edits by the main session warns once at warnAfterEdits. denyAfterEdits 0 = never deny; set a number for a hard stop.",
+    "countShell": true,
+    "$comment_edits": "Read/edit thresholds come from the profile: reads warn at warnAfterReads and are denied past denyAfterReads; edits warn at warnAfterEdits and are denied past denyAfterEdits. 0 = never deny. Set a number here only to override the profile.",
     "subagents": { "scout": "scout", "analyst": "analyst", "worker": "worker", "verifier": "verifier" }
   },
   "session": {
@@ -81,20 +84,34 @@
       { "id": "rules", "command": "node scripts/rule-inventory.mjs --line" }
     ],
     "$comment_lines": "Status lines of the SessionStart note. Contract: the command prints ONE line or nothing; its exit code is ignored. Add your own sentinel here instead of editing the hook. This array replaces the default list as a whole.",
-    "context": { "warnTokens": 300000, "idleMinutes": 60, "idleMinTokens": 100000, "handoffSkill": "handoff", "offEnv": "CONTEXT_WATCH" }
+    "context": { "idleMinutes": 60, "idleMinTokens": 100000, "handoffSkill": "handoff", "offEnv": "CONTEXT_WATCH" }
   },
   "git": {
     "protectedBranches": [],
     "shield": { "escapeEnv": "AGENT_DESTRUCTIVE_OK", "forbiddenCommands": [] },
     "$comment_shield": "forbiddenCommands: [{ \"pattern\": \"<regex>\", \"reason\": \"<why>\" }] — extra shell commands the shield denies (a flag that gives false greens, a call that spends real money).",
-    "hygiene": { "autoClean": false, "branchMinAgeHours": 24, "worktreeMinAgeHours": 6, "staleStashDays": 14, "worktreeDebtAsk": 5, "ignoreFile": "scripts/git-hygiene-ignore.json" },
-    "$comment_hygiene": "autoClean false: the session start only reports merged branches and finished worktrees. true: it also removes what is provably lossless and writes a recovery log."
+    "hygiene": { "autoClean": false, "branchMinAgeHours": 24, "worktreeMinAgeHours": 6, "staleStashDays": 14, "ignoreFile": "scripts/git-hygiene-ignore.json", "equivalentMerge": "off" },
+    "$comment_hygiene": "autoClean false: the session start only reports merged branches and finished worktrees. true: it also removes what is provably lossless and writes a recovery log. equivalentMerge (off | squash | all): also recognise branches merged by squash or cherry-pick. worktreeDebtAsk (how many finished worktrees before the session start asks) comes from the profile."
   },
   "preCommit": { "checks": [] },
   "$comment_preCommit": "Extra commit-time checks: [{ \"id\": \"migrations\", \"command\": \"node scripts/x.mjs {files}\", \"whenStaged\": [\"db/migrations/**\"] }]. Board lint and the coordination archive check are built in.",
-  "pushGate": { "maxBlobMB": 2, "bigBlobMode": "warn", "bigBlobEnv": "BIG_FILE_OK", "requireHooksPath": true },
-  "testRunner": { "processName": "chrome-headless-shell", "maxWorkers": 2, "maxProcesses": 8, "triggerPattern": "playwright|e2e" },
+  "pushGate": { "bigBlobEnv": "BIG_FILE_OK" },
+  "$comment_pushGate": "maxBlobMB, bigBlobMode (warn | block), requireHooksPath, mapGate (block | off) and confirm (ask | off) come from the profile.",
+  "testRunner": { "processName": "chrome-headless-shell", "maxProcesses": 8, "triggerPattern": "playwright|e2e" },
   "orphans": { "pattern": "node --test", "maxAgeMinutes": 60, "maxRssMB": 4096 },
   "codex": { "riskyPatterns": [] },
-  "secretScan": { "tool": "gitleaks", "failClosed": true, "skipEnv": "SKIP_PUSH_GATE" }
+  "secretScan": { "tool": "gitleaks", "failClosed": true, "skipEnv": "SKIP_PUSH_GATE" },
+  "secrets": {
+    "mode": "block",
+    "protectedPaths": [
+      ".env", ".env.*", "**/*.pem", "**/*.key", "**/*.p12", "**/*.pfx", "**/id_rsa*", "**/id_ed25519*",
+      "**/.ssh/**", "**/.aws/credentials", "**/.npmrc", "**/.netrc", "**/.git-credentials",
+      "**/service-account*.json", "**/credentials*.json"
+    ],
+    "allow": [".env.example", ".env.sample", ".env.template", "**/*.pub"]
+  },
+  "$comment_secrets": "Secret-file shield. mode: block | warn | off. A glob without '/' matches the base name; 'allow' is subtracted from 'protectedPaths'. These lists replace the defaults as a whole.",
+  "doneGate": { "command": "", "timeoutSec": 900, "exempt": [] },
+  "$comment_doneGate": "command runs before a task may be closed; empty = the gate is off. The mode (block | warn | off) comes from the profile.",
+  "handoff": { "dir": "handoffs", "budgetBytes": 8192 }
 }

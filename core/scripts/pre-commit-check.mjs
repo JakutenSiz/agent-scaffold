@@ -25,7 +25,8 @@
  *
  * Escape hatches (value shown in the block):
  *   board         config.board.lint.escapeEnv (default BOARD_LINT)  = skip
- *   coordination  COORDINATION_CHECK = skip   (COORDINATION_CHECK=warn makes the check itself exit 0)
+ *   coordination  COORDINATION_CHECK = skip   (COORDINATION_CHECK=warn makes the check itself exit 0;
+ *                 config.coordination.checkMode 'warn' sets it for you, an explicit value wins)
  *   project check <check.skipEnv, default PRE_COMMIT_SKIP_<ID>>   = 1   (ID upper-cased, non-alnum -> _)
  * Mention the reason in the commit message whenever you skip.
  *
@@ -73,7 +74,7 @@ export const envKeyFor = (id) => `PRE_COMMIT_SKIP_${String(id).toUpperCase().rep
 
 /**
  * Builds the list of checks to run for a staged set. Pure: no process is started here.
- * Each entry: { id, kind: 'script'|'shell', argv?, command?, files, escapeEnv, escapeValue }.
+ * Each entry: { id, kind: 'script'|'shell', argv?, command?, files, escapeEnv, escapeValue, defaultEnv? }.
  */
 export function planChecks(root, config, staged) {
   const plan = [];
@@ -86,7 +87,10 @@ export function planChecks(root, config, staged) {
   }
   if (has(config.coordination?.file) && script('scripts/coordination-archive.mjs')) {
     plan.push({ id: 'coordination', kind: 'script', argv: ['scripts/coordination-archive.mjs', '--check'], files: [norm(config.coordination.file)],
-      escapeEnv: 'COORDINATION_CHECK', escapeValue: 'skip' });
+      escapeEnv: 'COORDINATION_CHECK', escapeValue: 'skip',
+      // config.coordination.checkMode 'warn' = COORDINATION_CHECK=warn for the script; a value already
+      // in the environment (non-empty) is left alone and wins over the config.
+      defaultEnv: config.coordination?.checkMode === 'warn' ? { COORDINATION_CHECK: 'warn' } : undefined });
   }
   for (const c of config.preCommit?.checks ?? []) {
     if (!c?.id || !c.command) continue;
@@ -98,12 +102,19 @@ export function planChecks(root, config, staged) {
   return plan;
 }
 
+/** `env` plus the check's default variables, which apply only where `env` has no non-empty value. */
+function withDefaultEnv(env, defaults) {
+  const out = { ...env };
+  for (const [k, v] of Object.entries(defaults ?? {})) if (!out[k]) out[k] = v;
+  return out;
+}
+
 /** Runs one planned check. Returns { ok, output }. Output is captured and shown only on failure. */
 export function runCheck(root, check) {
   const base = { cwd: root, encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 };
   const r = check.kind === 'script'
     // The built-in lint scripts read the stage, so they inherit the hook's GIT_INDEX_FILE.
-    ? spawnSync(process.execPath, check.argv, { ...base, env: process.env })
+    ? spawnSync(process.execPath, check.argv, { ...base, env: withDefaultEnv(process.env, check.defaultEnv) })
     : spawnSync(check.command, { ...base, shell: true, env: scrubGitEnv() });
   if (r.error) return { ok: true, output: `could not start (${r.error.message}) -- skipped (fail-open)` };
   return { ok: r.status === 0, output: `${r.stdout ?? ''}${r.stderr ?? ''}`.trimEnd() };

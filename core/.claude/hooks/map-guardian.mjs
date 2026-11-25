@@ -16,7 +16,7 @@
 //       - a trimmed injection says "map trimmed, full: <path>".
 //     Section matching is structural (headings, paths, tables), so it works for maps written in
 //     any language.
-// (2) REUSE-REGISTRY GATE: if the content being written matches a trigger in
+// (2) REUSE-REGISTRY GATE (config.memoryBank.reuseGate: block | off; off keeps the map injection): if the content being written matches a trigger in
 //     memory-bank/reuse-registry.json, does not reference the canonical piece, and the file
 //     itself is neither the canonical nor an exempt file — DENY, use the existing piece
 //     instead. An unparsable registry never blocks (fail-open) but prints a one-line warning
@@ -287,7 +287,7 @@ function main() {
   const SOURCE_EXT = repoEntry && repoEntry.sourceExtensions && repoEntry.sourceExtensions.length ? repoEntry.sourceExtensions : DEFAULT_SOURCE_EXT;
   const escapeExt = (e) => e.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const isSource = new RegExp('\\.(' + SOURCE_EXT.map(escapeExt).join('|') + ')$').test(rel);
-  if (registry && isSource && content) {
+  if (registry && isSource && content && (config.memoryBank?.reuseGate ?? 'block') !== 'off') {
     let existing = '';
     try {
       existing = readFileSync(path.resolve(file), 'utf8');

@@ -246,3 +246,31 @@ test('selectMapSlice: language-independent core detection and matching', () => {
   assert.ok(s.matchLines.some((l) => l.includes('refunds.ts')));
   assert.ok(s.toc.includes('## Diğer'));
 });
+
+test('reuse gate mode: memoryBank.reuseGate=off (or the minimal profile) never denies; standard still does', () => {
+  const content = 'const d = new Date(2026, 1);';
+  for (const [config, denies] of [
+    [{ memoryBank: { reuseGate: 'off' } }, false],
+    [{ profile: 'minimal' }, false],
+    [{ profile: 'strict' }, true],
+    [{}, true],
+  ]) {
+    const dir = makeProject({ map: '# Repo Map\n', registry: REGISTRY, config });
+    try {
+      const r = runHook(dir, 'src/feature/calendar.ts', { content });
+      const decision = r.stdout ? JSON.parse(r.stdout).hookSpecificOutput?.permissionDecision : null;
+      assert.equal(decision === 'deny', denies, JSON.stringify(config));
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }
+});
+
+test('reuse gate off still injects the JIT map slice', () => {
+  const dir = makeProject({ map: '# Repo Map\nsrc/feature/calendar.ts\n', registry: REGISTRY, config: { memoryBank: { reuseGate: 'off' } } });
+  try {
+    assert.match(ctxOf(runHook(dir, 'src/feature/calendar.ts', { content: 'new Date(' })), /FIRST edit/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

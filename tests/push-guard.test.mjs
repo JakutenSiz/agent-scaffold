@@ -345,3 +345,40 @@ test('deploy lock: a running deploy push in the same repo denies; DEPLOY_LOCK=sk
   assert.equal(skipped.decision, 'ask');
   c.kill();
 });
+
+// ---------------------------------------------------------------------------
+// Profile / mode keys
+// ---------------------------------------------------------------------------
+
+test('pushGate.confirm=off removes the deploy ask; the default and strict profile keep it', () => {
+  assert.equal(hook(makeFixture({ configExtra: { pushGate: { confirm: 'off' } } }), 'git push origin master:release').decision, null);
+  assert.equal(hook(makeFixture({ configExtra: { profile: 'minimal' } }), 'git push origin master:release').decision, null);
+  assert.equal(hook(makeFixture({ configExtra: { profile: 'strict' } }), 'git push origin master:release').decision, 'ask');
+});
+
+test('confirm=off does not switch the other deploy gates off (hooks path still denies)', () => {
+  const fx = makeFixture({ hooks: false, configExtra: { pushGate: { confirm: 'off' } } });
+  write(path.join(fx.project, '.githooks', 'pre-push'), '#!/bin/sh\nexit 0\n');
+  const r = hook(fx, 'git push origin master:release');
+  assert.equal(r.decision, 'deny');
+  assert.match(r.reason, /HOOKSPATH GATE/);
+});
+
+test('pushGate.mapGate=off lets an unmapped source file through; the default still denies', () => {
+  const off = makeFixture({ configExtra: { pushGate: { mapGate: 'off' } } });
+  addUnmapped(off.clone);
+  assert.equal(hook(off, 'git push origin master').decision, null);
+  const minimal = makeFixture({ configExtra: { profile: 'minimal' } });
+  addUnmapped(minimal.clone);
+  assert.equal(hook(minimal, 'git push origin master').decision, null);
+  const on = makeFixture();
+  addUnmapped(on.clone);
+  assert.equal(hook(on, 'git push origin master').decision, 'deny');
+});
+
+test('mapGate=off does not switch the behind gate off', () => {
+  const fx = makeFixture({ configExtra: { pushGate: { mapGate: 'off' } } });
+  const r = hook(fx, 'git push origin old');
+  assert.equal(r.decision, 'deny');
+  assert.match(r.reason, /BEHIND-PUSH GATE/);
+});
