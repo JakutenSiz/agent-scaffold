@@ -2,6 +2,7 @@
   "name": "agent-scaffold",
   "version": "0.3.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "description": "Agent working scaffold: install, upgrade and doctor for the fixed layer in core/.",
   "bin": {

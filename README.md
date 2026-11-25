@@ -91,10 +91,16 @@ project too.
 
 ## Status
 
-v0.2 (November 2026). The fixed layer now has a test suite (`npm test`, Node's built-in
+v0.3 (November 2026). The fixed layer has a test suite (`npm test`, Node's built-in
 runner, no dependencies; the tests live in `tests/` and are not copied into projects).
 
-What v0.2 adds over v0.1, all taken from two and a half more months of the source
+What v0.3 adds over v0.2: the `install`, `upgrade` and `doctor` commands with a file
+manifest; profiles; the secret shield; the done gate; equivalent-merge recognition in git
+hygiene; the handoff packet; the generated gate table below; `examples/minimal`; CI.
+The new commands and gates are covered by the test suite. They have not yet been used on
+a project other than the one they came from.
+
+What v0.2 added over v0.1, all taken from two and a half more months of the source
 project: the `analyst` role and the `Better path:` channel; `git-shield`; shell reads
 counted by `read-guard`; a commit gate; pushed-content (not working-tree) checks, the
 hook-environment fix, hooks-path, large-file and deploy-lock gates; board lint, board
@@ -115,6 +121,10 @@ tests on Linux and macOS (`.github/workflows/test.yml`). Windows has not been tr
 
 Upgrading a project installed from v0.1: see `docs/CUSTOMIZING.md` § Updating the
 package itself.
+
+## License
+
+MIT. See `LICENSE`.
 
 ## Layout of this package
 
