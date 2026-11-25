@@ -32,11 +32,17 @@ const startDir = input.cwd || process.env.CLAUDE_PROJECT_DIR || process.cwd();
 const { root, config, found } = loadConfig(startDir);
 if (!found) process.exit(0); // scaffold not installed here — stay silent
 
-const absFile = path.resolve(file);
-const repo = repoFor(root, config, absFile);
+const absFile = path.resolve(startDir, file);
+// A file inside `<root>/.worktrees/<name>/` belongs to the same repo layout as the main checkout:
+// match the repo against the worktree's own root, and run the check inside the worktree copy.
+const wt = absFile.startsWith(path.join(root, '.worktrees') + path.sep)
+  ? path.join(root, '.worktrees', path.relative(path.join(root, '.worktrees'), absFile).split(path.sep)[0])
+  : null;
+const layoutRoot = wt || root;
+const repo = repoFor(layoutRoot, config, absFile);
 if (!repo) process.exit(0);
 
-const repoAbs = path.resolve(root, repo.path || '.');
+const repoAbs = path.resolve(layoutRoot, repo.path || '.');
 const rel = path.relative(repoAbs, absFile).split(path.sep).join('/');
 if (rel.startsWith('..')) process.exit(0);
 

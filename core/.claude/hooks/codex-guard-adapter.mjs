@@ -81,9 +81,11 @@ const ifPasses = (cond, command) => {
 
 export function guard(input, { hooks, root, extraRisky, warn = (m) => console.error(m), budgetMs = TOTAL_BUDGET_MS } = {}) {
   const command = input?.tool_input?.command;
-  // An absent event name is evaluated normally; only an explicit other event is ignored.
+  // Absent event / tool names are evaluated normally (ignoring on a missing field would be
+  // fail-open); only an explicit other event or an explicit non-Bash tool is ignored.
   const event = input?.hook_event_name;
-  if ((event !== undefined && event !== 'PreToolUse') || input?.tool_name !== 'Bash' || typeof command !== 'string') return {};
+  const tool = input?.tool_name;
+  if ((event && event !== 'PreToolUse') || (tool && tool !== 'Bash') || typeof command !== 'string') return {};
   const base = root ?? ADAPTER_ROOT;
   const risky = extraRisky ?? compileRisky(loadConfig(base).config.codex?.riskyPatterns);
   return runHooks(JSON.stringify(input), command, { hooks, root: base, risky, warn, budgetMs });

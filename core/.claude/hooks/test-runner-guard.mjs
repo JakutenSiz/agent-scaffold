@@ -11,7 +11,8 @@
 //   2) If the machine already has more than maxProcesses of the configured
 //      process running, REJECT a new run (clean up orphans first).
 //
-// Scope: a command line matching config.testRunner.triggerPattern. All other
+// Scope: a command line matching config.testRunner.triggerPattern (or a bare `npm test` whose
+// session cwd matches it). All other
 // Bash/PowerShell commands are left alone (fast exit). Fully config-driven —
 // see scripts/lib/config.mjs. Fails open (exit 0, no output) when this
 // project has not installed the scaffold, or has not configured a
@@ -39,7 +40,11 @@ const MAX_PROCESSES = tr.maxProcesses;
 const TRIGGER = tr.triggerPattern ? new RegExp(tr.triggerPattern) : null;
 if (!PROCESS_NAME || !TRIGGER) process.exit(0); // not configured for this project
 
-if (!TRIGGER.test(cmd)) process.exit(0);
+// The session cwd also counts, but only for a bare package-manager test run (`npm test`,
+// `npm run test:e2e`, ...): inside the guarded project the command text alone has no marker.
+// Any other command in that directory is left alone.
+const bareTestRun = /\b(npm|pnpm|yarn)\s+(run\s+)?test(:\S+)?\b/.test(cmd);
+if (!TRIGGER.test(cmd) && !(bareTestRun && TRIGGER.test(String(input.cwd ?? '')))) process.exit(0);
 
 const decide = (decision, reason) => {
   process.stdout.write(

@@ -77,6 +77,18 @@ test('a missing hook_event_name is evaluated normally; a present non-PreToolUse 
   assert.deepEqual(guard({ ...noEvent, hook_event_name: 'PostToolUse' }, { hooks: deny, root: ROOT }), {});
 });
 
+test('a missing tool_name is evaluated by its command; a present non-Bash tool_name returns {}', () => {
+  const deny = [{ command: emit('deny', 'x'), timeout: 10 }];
+  const { tool_name: _t, ...noTool } = payload('git reset --hard');
+  assert.equal(decision(guard(noTool, { hooks: deny, root: ROOT })), 'deny');
+  const { tool_name: _t2, ...harmless } = payload('ls');
+  assert.deepEqual(guard(harmless, { hooks: [{ command: 'true', timeout: 10 }], root: ROOT, extraRisky: [] }), {});
+  assert.deepEqual(guard({ ...noTool, tool_name: 'apply_patch' }, { hooks: deny, root: ROOT }), {});
+  // no tool_name AND no event name: still evaluated
+  const { hook_event_name: _e, ...bare } = noTool;
+  assert.equal(decision(guard(bare, { hooks: deny, root: ROOT })), 'deny');
+});
+
 test('the `if` condition filters hooks by command word', () => {
   const hooks = [{ command: emit('deny', 'git only'), timeout: 10, if: 'Bash(git *)' }];
   assert.deepEqual(guard(payload('ls'), { hooks, root: ROOT, extraRisky: [] }), {});
