@@ -1,0 +1,9 @@
+{
+  "name": "agent-scaffold",
+  "private": true,
+  "type": "module",
+  "description": "Tests for the fixed layer in core/. Not copied into projects.",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  }
+}

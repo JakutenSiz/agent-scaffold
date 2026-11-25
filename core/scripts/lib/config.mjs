@@ -13,20 +13,57 @@ import path from 'node:path';
 export const CONFIG_FILE = 'agent-scaffold.config.json';
 
 export const DEFAULTS = {
-  version: 1,
+  version: 2,
   projectName: 'project',
   language: 'en',
   layout: 'single',
   humanGatekeeper: 'the project owner',
+  // Tags usable in a board item's "Human step" field: [OWNER] ... One entry per human who
+  // instructs agents; scripts/human-queue.mjs builds one queue per tag.
+  humans: ['OWNER'],
   labels: { humanOnly: 'DEV', anyone: 'ANY' },
   repos: [{ name: 'app', path: '.', stack: 'unknown', checks: {}, editCheck: [], deployBranches: [], sourceExtensions: ['ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs', 'py'] }],
-  board: { file: 'task-board.md', archive: 'task-board-archive.md', ceiling: 4000 },
-  coordination: { file: 'coordination.md', archive: 'coordination-archive.md', ceiling: 1200 },
-  memoryBank: { dir: 'memory-bank', ceiling: 800, windowDays: 14, pendingPhrases: ['pending', 'awaiting', 'waiting for', 'blocked'] },
-  docs: { reports: 'reports', specs: 'specs', workingRules: 'docs/agent-working-rules.md', memoryBankGuide: 'docs/memory-bank-guide.md' },
-  delegation: { warnAfterReads: 5, denyAfterReads: 10, subagents: { scout: 'scout', worker: 'worker', verifier: 'verifier' } },
-  session: { autoPull: true, skills: [] },
+  board: {
+    file: 'task-board.md', archive: 'task-board-archive.md',
+    ceiling: 4000, ceilingBytes: 262144, maxLineChars: 4096,
+    // Field names of the compact item template. Translate them here if the board is not English.
+    fields: { remaining: 'Remaining', lastEvidence: 'Last evidence', decision: 'Decision/blocker', trap: 'Trap', history: 'Full history', humanStep: 'Human step' },
+    lint: { mode: 'warn', escapeEnv: 'BOARD_LINT' },
+    humanStepExpiryWeeks: 4,
+  },
+  coordination: { file: 'coordination.md', archive: 'coordination-archive.md', ceiling: 1200, ceilingBytes: 131072, staleClaimDays: 7 },
+  memoryBank: { dir: 'memory-bank', ceiling: 800, ceilingBytes: 65536, maxLineChars: 2048, windowDays: 14, mapBudgetBytes: 8000, pendingPhrases: ['pending', 'awaiting', 'waiting for', 'blocked'] },
+  docs: { reports: 'reports', specs: 'specs', workingRules: 'docs/agent-working-rules.md', memoryBankGuide: 'docs/memory-bank-guide.md', memoryBankSchema: 'docs/memory-bank-schema.json', toolTraps: 'docs/tool-traps.md' },
+  delegation: {
+    warnAfterReads: 5, denyAfterReads: 10, countShell: true, warnAfterEdits: 15, denyAfterEdits: 0,
+    subagents: { scout: 'scout', analyst: 'analyst', worker: 'worker', verifier: 'verifier' },
+  },
+  session: {
+    autoPull: true, autoPullRepos: true, ensureHooksPath: true, staleDocHours: 24, linesBudgetMs: 25000, skills: [],
+    // One-line status scripts printed in the SessionStart note. Contract: the command prints at
+    // most one line (or nothing) and its exit code is ignored. Add your own lines here.
+    lines: [
+      { id: 'size', command: 'node scripts/md-size-watch.mjs --line' },
+      { id: 'board', command: 'node scripts/board-staleness.mjs --line' },
+      { id: 'coordination', command: 'node scripts/coordination-archive.mjs --line' },
+      { id: 'humans', command: 'node scripts/human-queue.mjs --line' },
+      { id: 'hygiene', command: 'node scripts/git-hygiene-watch.mjs --line' },
+      { id: 'orphans', command: 'node scripts/orphan-process.mjs --line' },
+      { id: 'memory-bank', command: 'node scripts/memory-bank-check.mjs --line' },
+      { id: 'rules', command: 'node scripts/rule-inventory.mjs --line' },
+    ],
+    context: { warnTokens: 300000, idleMinutes: 60, idleMinTokens: 100000, handoffSkill: 'handoff', offEnv: 'CONTEXT_WATCH' },
+  },
+  git: {
+    protectedBranches: [],
+    shield: { escapeEnv: 'AGENT_DESTRUCTIVE_OK', forbiddenCommands: [] },
+    hygiene: { autoClean: false, branchMinAgeHours: 24, worktreeMinAgeHours: 6, staleStashDays: 14, worktreeDebtAsk: 5, ignoreFile: 'scripts/git-hygiene-ignore.json' },
+  },
+  preCommit: { checks: [] },
+  pushGate: { maxBlobMB: 2, bigBlobMode: 'warn', bigBlobEnv: 'BIG_FILE_OK', requireHooksPath: true },
   testRunner: { processName: 'chrome-headless-shell', maxWorkers: 2, maxProcesses: 8, triggerPattern: 'playwright|e2e' },
+  orphans: { pattern: 'node --test', maxAgeMinutes: 60, maxRssMB: 4096 },
+  codex: { riskyPatterns: [] },
   secretScan: { tool: 'gitleaks', failClosed: true, skipEnv: 'SKIP_PUSH_GATE' },
 };
 
