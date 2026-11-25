@@ -64,7 +64,7 @@ export function decide({ context, idleMinutes, sinceWarn }, limits) {
 }
 
 export function noteText(decision, { context, idleMinutes }, { warnTokens, handoffSkill = 'handoff' }) {
-  const ritual = `run the /${handoffSkill} skill (handoff note + board -> commit -> push), then tell the user in one line to type /clear and continue in a fresh session. You cannot run /clear yourself.`;
+  const ritual = `run the /${handoffSkill} skill (measured packet via node scripts/handoff-packet.mjs <item-code> --write, then board -> commit -> push), then tell the user in one line to type /clear and continue in a fresh session. You cannot run /clear yourself.`;
   const k = Math.round(context / 1000);
   if (decision.kind === 'idle')
     return `CONTEXT WATCH: the session sat idle for ${Math.round(idleMinutes)} min and the context is ${k}k tokens - the prompt cache expired, so this message makes the whole context be re-written. If this message starts a NEW job, BEFORE starting it ${ritual} If it continues the same job, carry on and do not repeat this note to the user.`;

@@ -13,8 +13,8 @@
  *   - claim rows whose State cell starts with `✅` (whole row incl. continuation lines, under a
  *     dated heading at the top of the archive);
  *   - note sections whose heading starts with `## ✅` (closed notes);
- *   - notes whose heading carries `[expires: YYYY-MM-DD]` in the past, and bullets under
- *     `## Open messages` carrying such a tag (appended to a dated "Archived notes" section at
+ *   - notes whose heading carries `[expires: YYYY-MM-DD]` in the past, `###` notes under
+ *     `## Handed-over work` with such a tag, and bullets under `## Open messages` carrying one (appended to a dated "Archived notes" section at
  *     the end of the archive; `##` headings are demoted to `###`).
  *   Structural sections (Protocol, Active claims, Open messages, Handed-over work, Closed) and
  *   headings inside code fences are never treated as notes.
@@ -93,6 +93,25 @@ function findNoteSections(lines) {
   return notes;
 }
 
+/**
+ * `###` notes under `## Handed-over work` (outside code fences): { start, end (exclusive), heading }.
+ * A note runs to the next `###` or `##` heading.
+ */
+function findHandedOverNotes(lines) {
+  const heads = headingIndexes(lines);
+  const k = heads.findIndex((i) => lines[i].startsWith('## Handed-over work'));
+  if (k < 0) return [];
+  const from = heads[k] + 1;
+  const to = k + 1 < heads.length ? heads[k + 1] : lines.length;
+  const starts = [];
+  let fence = false;
+  for (let i = from; i < to; i++) {
+    if (/^\s*```/.test(lines[i])) { fence = !fence; continue; }
+    if (!fence && /^### /.test(lines[i])) starts.push(i);
+  }
+  return starts.map((start, n) => ({ start, end: n + 1 < starts.length ? starts[n + 1] : to, heading: lines[start] }));
+}
+
 /** Bullets under `## Open messages`: { start, end (exclusive), heading: first line }. */
 function findMessageBullets(lines) {
   const heads = headingIndexes(lines);
@@ -117,7 +136,7 @@ function findMessageBullets(lines) {
  * Returns { lines, closedRows, closedNotes, expired, staleClaims }.
  *   closedRows   [{ start, end, claim }]  -- end inclusive
  *   closedNotes  [{ start, end, heading }] -- end exclusive
- *   expired      [{ start, end, heading, expires, kind: 'section'|'bullet' }]
+ *   expired      [{ start, end, heading, expires, kind: 'section'|'bullet'|'note' }]
  *   staleClaims  [{ session, itemCode, ageDays }]
  */
 export function analyze(text, today, staleClaimDays = 7) {
@@ -146,6 +165,10 @@ export function analyze(text, today, staleClaimDays = 7) {
     if (CLOSED_HEADING_RE.test(n.heading)) { closedNotes.push({ start: n.start, end: n.end, heading: n.heading }); continue; }
     const e = expiry(n.heading);
     if (e) expired.push({ ...n, expires: e, kind: 'section' });
+  }
+  for (const n of findHandedOverNotes(lines)) {
+    const e = expiry(n.heading);
+    if (e) expired.push({ ...n, expires: e, kind: 'note' });
   }
   for (const b of findMessageBullets(lines)) {
     const e = expiry(lines.slice(b.start, b.end).join('\n'));

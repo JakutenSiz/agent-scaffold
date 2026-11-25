@@ -47,6 +47,7 @@ test('noteText: names the handoff skill, push and /clear; custom skill name is u
   assert.match(n, /\/wrapup/);
   assert.match(n, /push/);
   assert.match(n, /\/clear/);
+  assert.match(n, /scripts\/handoff-packet\.mjs/);
   assert.match(noteText({ kind: 'idle' }, { context: 120000, idleMinutes: 95 }, { warnTokens: 300000 }), /95 min/);
   assert.equal(noteText({ kind: 'none' }, { context: 1, idleMinutes: 1 }, { warnTokens: 1 }), '');
 });

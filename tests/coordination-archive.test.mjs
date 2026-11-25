@@ -297,3 +297,53 @@ test('missing coordination file: --line and --check are silent and exit 0', () =
     }
   } finally { t.cleanup(); }
 });
+
+const HANDED = `# Agent Coordination
+
+## Protocol
+text
+
+## Active claims
+
+| Session | Item code | Since | State |
+|---|---|---|---|
+| a-2 | 1030-open-item | 2026-10-30 | working |
+
+## Open messages
+
+## Handed-over work
+
+### 2026-10-20 old handoff [expires: 2026-10-25]
+old body line
+\`\`\`
+### not a note [expires: 2026-10-01]
+\`\`\`
+
+### 2026-10-30 fresh handoff [expires: 2026-11-05]
+fresh body
+
+### 2026-10-30 undated handoff
+undated body
+
+## Closed
+`;
+
+test('expired ### note under Handed-over work is detected and moved to the archive', () => {
+  const a = analyze(HANDED, parseIso(TODAY));
+  assert.equal(a.expired.length, 1);
+  assert.match(a.expired[0].heading, /old handoff/);
+  const t = setup({ source: HANDED });
+  try {
+    const r = t.run('--write');
+    assert.equal(r.status, 0, r.stderr);
+    const src = fs.readFileSync(t.file, 'utf8');
+    const arch = fs.readFileSync(t.arch, 'utf8');
+    assert.doesNotMatch(src, /old handoff/);
+    assert.doesNotMatch(src, /old body line/);
+    assert.match(src, /### 2026-10-30 fresh handoff/);
+    assert.match(src, /### 2026-10-30 undated handoff/);
+    assert.match(arch, /### 2026-10-20 old handoff \[expires: 2026-10-25\]/);
+    assert.match(arch, /old body line/);
+    assert.match(src, /## Handed-over work/);
+  } finally { t.cleanup(); }
+});
